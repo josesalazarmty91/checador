@@ -765,6 +765,12 @@ document.addEventListener('DOMContentLoaded', () => {
         monthPicker.value = `${year}-${month}`;
         punctualityMonthPicker.value = `${year}-${month}`;
 
+        // AJUSTE: Añadir event listener para el filtro de departamento
+        filterDepartment.addEventListener('change', () => {
+            const selectedDepartmentId = filterDepartment.value ? parseInt(filterDepartment.value) : null;
+            populateAttendanceUserFilter(null, selectedDepartmentId);
+        });
+
         applyFiltersAndRender();
     };
 
@@ -778,25 +784,31 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getFilteredAttendance = () => {
-        let visibleEmployees = [];
-        // Define qué empleados puede ver el usuario actual según su rol
-        if (currentUser.role === 'admin' || currentUser.role === 'director') {
-            visibleEmployees = employees;
-        } else if (currentUser.role === 'manager') {
+        let filteredAttendance = [...attendance];
+        
+        // --- INICIO DE AJUSTES EN FILTROS ---
+
+        // AJUSTE: La visibilidad se maneja dentro del renderizado, aquí partimos del total
+        let employeesToDisplay = [...employees];
+        
+        // Lógica de visibilidad por rol
+        if (currentUser.role === 'manager') {
             const managerEmployeeId = parseInt(currentUser.id_empleado);
             const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
             if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
                 reportIds.push(managerEmployeeId);
             }
-            visibleEmployees = employees.filter(e => reportIds.includes(e.id));
+            employeesToDisplay = employees.filter(e => reportIds.includes(e.id));
         }
-        
-        populateAttendanceUserFilter(visibleEmployees);
-        populateDepartmentSelect(filterDepartment, true);
 
-        let filteredAttendance = [...attendance];
-        const visibleEmployeeIds = visibleEmployees.map(e => e.id);
+        const visibleEmployeeIds = employeesToDisplay.map(e => e.id);
         filteredAttendance = filteredAttendance.filter(a => visibleEmployeeIds.includes(a.employeeId));
+
+        // Rellenar filtros antes de aplicar
+        populateDepartmentSelect(filterDepartment, true);
+        const initialDepartmentId = filterDepartment.value ? parseInt(filterDepartment.value) : null;
+        populateAttendanceUserFilter(employeesToDisplay, initialDepartmentId);
+
 
         // Obtiene los valores de los filtros
         let startDate = filterStartDate.value;
@@ -804,10 +816,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const departmentId = filterDepartment.value;
         const employeeId = filterEmployee.value;
         
-        // --- INICIO DE AJUSTES EN FILTROS ---
-
-        // AJUSTE: Si solo se proporciona la fecha de inicio, se establece la fecha de fin igual a la de inicio
-        // para filtrar por un solo día.
         if (startDate && !endDate) {
             endDate = startDate;
         }
@@ -818,25 +826,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Aplica filtro por departamento
-        if (departmentId && ['admin', 'director'].includes(currentUser.role)) {
+        if (departmentId) {
             const departmentEmployeeIds = employees.filter(e => e.id_departamento === parseInt(departmentId)).map(e => e.id);
             filteredAttendance = filteredAttendance.filter(a => departmentEmployeeIds.includes(a.employeeId));
         }
         
-        // AJUSTE: Se mejora el parseo de fechas para crear objetos Date de forma robusta,
-        // evitando errores comunes de zona horaria que causan que los filtros fallen.
         if (startDate) {
             const [year, month, day] = startDate.split('-').map(Number);
-            const start = new Date(year, month - 1, day, 0, 0, 0, 0); // Inicio del día
+            const start = new Date(year, month - 1, day, 0, 0, 0, 0);
             filteredAttendance = filteredAttendance.filter(a => a.checkIn && a.checkIn >= start);
         }
         if (endDate) {
             const [year, month, day] = endDate.split('-').map(Number);
-            const end = new Date(year, month - 1, day, 23, 59, 59, 999); // Fin del día
+            const end = new Date(year, month - 1, day, 23, 59, 59, 999);
             filteredAttendance = filteredAttendance.filter(a => a.checkIn && a.checkIn <= end);
         }
-
-        // --- FIN DE AJUSTES EN FILTROS ---
         
         return filteredAttendance;
     }
@@ -1016,17 +1020,48 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- LÓGICA DE FILTROS Y EXPORTACIÓN ---
-    const populateAttendanceUserFilter = (visibleEmployees) => {
+    // AJUSTE: La función ahora acepta un departmentId para filtrar los empleados
+    const populateAttendanceUserFilter = (employeesToPopulate, departmentId = null) => {
+        // Si no se pasa una lista de empleados, se usa la lista visible por rol
+        if (!employeesToPopulate) {
+            if (currentUser.role === 'admin' || currentUser.role === 'director') {
+                employeesToPopulate = employees;
+            } else if (currentUser.role === 'manager') {
+                const managerEmployeeId = parseInt(currentUser.id_empleado);
+                const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
+                if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
+                    reportIds.push(managerEmployeeId);
+                }
+                employeesToPopulate = employees.filter(e => reportIds.includes(e.id));
+            } else {
+                employeesToPopulate = [];
+            }
+        }
+
+        let filteredEmployees = employeesToPopulate;
+        // Si se seleccionó un departamento, se filtra la lista de empleados
+        if (departmentId) {
+            filteredEmployees = employeesToPopulate.filter(emp => emp.id_departamento === departmentId);
+        }
+
+        const currentEmployeeValue = filterEmployee.value;
         filterEmployee.innerHTML = '<option value="">Todos los Empleados</option>';
-        visibleEmployees.forEach(emp => {
+        
+        filteredEmployees.forEach(emp => {
             const option = document.createElement('option');
             option.value = emp.id;
             option.textContent = `${emp.nombres} ${emp.apellido_paterno}`;
             filterEmployee.appendChild(option);
         });
+
+        // Intenta preservar la selección del empleado si todavía existe en la nueva lista
+        if (filteredEmployees.some(emp => emp.id.toString() === currentEmployeeValue)) {
+            filterEmployee.value = currentEmployeeValue;
+        }
     };
     
     const populateDepartmentSelect = (selectElement, includeAllOption = false) => {
+        const currentValue = selectElement.value;
         selectElement.innerHTML = '';
         if (includeAllOption) {
             selectElement.innerHTML = '<option value="">Todos los Deptos.</option>';
@@ -1037,6 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
             option.textContent = dep.nombre;
             selectElement.appendChild(option);
         });
+        selectElement.value = currentValue;
     };
 
     applyFiltersBtn.addEventListener('click', applyFiltersAndRender);
@@ -1045,6 +1081,8 @@ document.addEventListener('DOMContentLoaded', () => {
         filterEndDate.value = '';
         filterDepartment.value = '';
         filterEmployee.value = '';
+        // AJUSTE: Se repuebla el filtro de empleados para mostrar todos nuevamente
+        populateAttendanceUserFilter(null, null);
         applyFiltersAndRender();
     });
 
@@ -2035,3 +2073,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
