@@ -242,8 +242,9 @@
                         </div>
                         <!-- SECCIÓN DE FILTROS -->
                         <div id="attendance-filters" class="p-6 bg-gray-50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                            <div class="lg:col-span-1"><label for="filter-start-date" class="block text-sm font-medium text-gray-700">Fecha Inicio</label><input type="date" id="filter-start-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
-                            <div class="lg:col-span-1"><label for="filter-end-date" class="block text-sm font-medium text-gray-700">Fecha Fin</label><input type="date" id="filter-end-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <!-- AJUSTE: Se cambian las etiquetas para mayor claridad -->
+                            <div class="lg:col-span-1"><label for="filter-start-date" class="block text-sm font-medium text-gray-700">Desde la Fecha</label><input type="date" id="filter-start-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div class="lg:col-span-1"><label for="filter-end-date" class="block text-sm font-medium text-gray-700">Hasta la Fecha</label><input type="date" id="filter-end-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
                             <div id="department-filter-container" class="lg:col-span-1"><label for="filter-department" class="block text-sm font-medium text-gray-700">Departamento</label><select id="filter-department" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select></div>
                             <div id="employee-filter-container" class="lg:col-span-1"><label for="filter-employee" class="block text-sm font-medium text-gray-700">Empleado</label><select id="filter-employee" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select></div>
                             <div class="flex space-x-2 lg:col-span-1"><button id="apply-filters-btn" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">Filtrar</button><button id="clear-filters-btn" class="w-full bg-slate-300 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-400 transition font-semibold">Limpiar</button></div>
@@ -757,8 +758,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderReportsView = () => {
         const canSeeDepartmentFilter = ['admin', 'director'].includes(currentUser.role);
         departmentFilterContainer.classList.toggle('hidden', !canSeeDepartmentFilter);
-        employeeFilterContainer.classList.toggle('lg:col-span-2', !canSeeDepartmentFilter);
-        employeeFilterContainer.classList.toggle('lg:col-span-1', canSeeDepartmentFilter);
         
         const today = new Date();
         const year = today.getFullYear();
@@ -780,6 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getFilteredAttendance = () => {
         let visibleEmployees = [];
+        // Define qué empleados puede ver el usuario actual según su rol
         if (currentUser.role === 'admin' || currentUser.role === 'director') {
             visibleEmployees = employees;
         } else if (currentUser.role === 'manager') {
@@ -798,30 +798,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const visibleEmployeeIds = visibleEmployees.map(e => e.id);
         filteredAttendance = filteredAttendance.filter(a => visibleEmployeeIds.includes(a.employeeId));
 
-        const startDate = filterStartDate.value;
-        const endDate = filterEndDate.value;
+        // Obtiene los valores de los filtros
+        let startDate = filterStartDate.value;
+        let endDate = filterEndDate.value;
         const departmentId = filterDepartment.value;
         const employeeId = filterEmployee.value;
+        
+        // --- INICIO DE AJUSTES EN FILTROS ---
 
+        // AJUSTE: Si solo se proporciona la fecha de inicio, se establece la fecha de fin igual a la de inicio
+        // para filtrar por un solo día.
+        if (startDate && !endDate) {
+            endDate = startDate;
+        }
+
+        // Aplica filtro por empleado
         if (employeeId) {
             filteredAttendance = filteredAttendance.filter(a => a.employeeId === parseInt(employeeId));
         }
+        
+        // Aplica filtro por departamento
         if (departmentId && ['admin', 'director'].includes(currentUser.role)) {
             const departmentEmployeeIds = employees.filter(e => e.id_departamento === parseInt(departmentId)).map(e => e.id);
             filteredAttendance = filteredAttendance.filter(a => departmentEmployeeIds.includes(a.employeeId));
         }
+        
+        // AJUSTE: Se mejora el parseo de fechas para crear objetos Date de forma robusta,
+        // evitando errores comunes de zona horaria que causan que los filtros fallen.
         if (startDate) {
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            filteredAttendance = filteredAttendance.filter(a => a.checkIn >= start);
+            const [year, month, day] = startDate.split('-').map(Number);
+            const start = new Date(year, month - 1, day, 0, 0, 0, 0); // Inicio del día
+            filteredAttendance = filteredAttendance.filter(a => a.checkIn && a.checkIn >= start);
         }
         if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
-            filteredAttendance = filteredAttendance.filter(a => a.checkIn <= end);
+            const [year, month, day] = endDate.split('-').map(Number);
+            const end = new Date(year, month - 1, day, 23, 59, 59, 999); // Fin del día
+            filteredAttendance = filteredAttendance.filter(a => a.checkIn && a.checkIn <= end);
         }
+
+        // --- FIN DE AJUSTES EN FILTROS ---
+        
         return filteredAttendance;
     }
+
 
     const applyFiltersAndRender = () => {
         currentPage = 1; 
@@ -872,7 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortedAttendance = [...paginatedItems].sort((a, b) => (b.checkIn || 0) - (a.checkIn || 0));
         
         if (sortedAttendance.length === 0) {
-            attendanceTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-gray-500">No hay registros que mostrar.</td></tr>';
+            attendanceTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-gray-500">No hay registros que mostrar con los filtros seleccionados.</td></tr>';
         } else {
             sortedAttendance.forEach(att => {
                 const employee = employees.find(e => e.id === att.employeeId);
@@ -1048,6 +1067,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const exportAttendanceToCSV = () => {
+        // AJUSTE: Se asegura de que la data exportada sea la que está actualmente filtrada
         const data = getFilteredAttendance();
         let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
         csvContent += "Empleado,Departamento,Fecha Entrada,Hora Entrada,Fecha Salida,Hora Salida\r\n";
@@ -2015,4 +2035,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-
