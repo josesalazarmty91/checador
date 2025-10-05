@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoTime - Gestión de Empleados</title>
+    
+    <!-- Tailwind CSS para un diseño moderno y responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter, para una tipografía limpia -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Librerías para QR, Gráficas y Reconocimiento Facial -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MEJORA: Se usa la versión completa de face-api.js para asegurar que todos los componentes estén disponibles -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js"></script>
+
+    <style>
+        /* Estilos personalizados y para impresión */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Un gris azulado más suave */
+        }
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+        }
+        /* Estilos para la impresión del Kardex */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #kardex-print-area, #kardex-print-area * {
+                visibility: visible;
+            }
+            #kardex-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        /* Animación para el Toast */
+        .toast {
+            animation: slide-in 0.5s forwards, slide-out 0.5s 3.5s forwards;
+        }
+        @keyframes slide-in {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slide-out {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+        }
+        /* Estilo para la pantalla de éxito del escaneo */
+        #view-scan-success.active {
+            display: flex;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(240, 244, 248, 0.95);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            animation: fade-in 0.3s ease-out;
+        }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Estilos para la tabla de reporte mensual */
+        .sticky-col {
+            position: -webkit-sticky;
+            position: sticky;
+            left: 0;
+            background-color: #fff;
+            z-index: 10;
+        }
+        #monthly-report-table-container table thead th:first-child,
+        #punctuality-report-table-container table thead th:first-child {
+            z-index: 20;
+        }
+        /* Estilos para el video de reconocimiento facial */
+        #facial-checker-container, #facial-enrollment-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: auto;
+            aspect-ratio: 4 / 3;
+        }
+        #facial-checker-container video, #facial-enrollment-container video,
+        #facial-checker-container canvas, #facial-enrollment-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* NUEVO: Estilos para el aviso de privacidad */
+        .prose p {
+            margin-bottom: 1em;
+        }
+        .prose ul {
+            list-style-type: disc;
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+        .prose li {
+            margin-bottom: 0.5em;
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <!-- VISTA DE LOGIN -->
+    <div id="login-view" class="min-h-screen flex items-center justify-center bg-gray-100 p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center">
+            <img src="https://grupoamalgama.com.mx/gotime/logo.png" alt="Logo del Sistema GoTime" class="mx-auto h-32 w-auto mb-4">
+            <h1 class="text-2xl font-bold text-slate-800 mb-1">Bienvenido</h1>
+            <p class="text-slate-600 mb-8">Inicia sesión para continuar</p>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="username" class="sr-only">Usuario</label>
+                    <input type="text" id="username" name="username" required placeholder="Nombre de usuario" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg">
+                </div>
+                <div>
+                    <label for="password" class="sr-only">Contraseña</label>
+                    <input type="password" id="password" name="password" required placeholder="Contraseña" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-lg font-semibold">
+                    Entrar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL DE LA APLICACIÓN (Inicialmente oculto) -->
+    <div id="app-container" class="min-h-screen hidden">
+        <header id="app-header" class="bg-white shadow-md no-print">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900">GoTime</h1>
+                    <p id="welcome-message" class="text-sm text-gray-500"></p>
+                </div>
+                <nav class="flex items-center space-x-6">
+                    <button data-view="dashboard" class="nav-button text-indigo-600 font-semibold hover:text-indigo-800 transition">Dashboard</button>
+                    <button id="reports-nav-btn" data-view="reports" class="nav-button text-indigo-600 font-semibold hover:text-indigo-800 transition">Reportes</button>
+                    <button id="logout-btn" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-300 transition text-sm font-medium">Cerrar Sesión</button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+            
+            <!-- VISTA: PANEL DE CONTROL (DASHBOARD) -->
+            <section id="view-dashboard" class="view">
+                <div class="px-4 py-6 sm:px-0">
+                    <div id="admin-actions" class="grid grid-cols-1 md:grid-cols-6 gap-6 mb-10">
+                        <button data-view="register" class="nav-button bg-gradient-to-br from-indigo-500 to-blue-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center text-lg font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>Registrar Empleado</button>
+                        <button data-view="users" class="nav-button bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center text-lg font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-3-5.197M15 21a9 9 0 00-9-9" /></svg>Gestionar Usuarios</button>
+                        <button data-view="departments" class="nav-button bg-gradient-to-br from-pink-500 to-purple-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center text-lg font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>Departamentos</button>
+                        <button data-view="facial-enrollment" class="nav-button bg-gradient-to-br from-cyan-500 to-blue-500 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center text-lg font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Biometría Facial</button>
+                        <button data-view="scanner" class="nav-button bg-gradient-to-br from-green-500 to-teal-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex items-center justify-center text-lg font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h-1m-2-13h-1m-2 13.749L12 14.75M5.25 8.25l-1.5 1.5M18.75 8.25l1.5 1.5m-1.5-1.5l-1.5-1.5m-12 3l1.5-1.5M12 21a9 9 0 110-18 9 9 0 010 18z" /></svg>Escanear QR</button>
+                        <button data-view="facial-checker" class="nav-button bg-gradient-to-br from-red-500 to-pink-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex items-center justify-center text-lg font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>Checador Facial</button>
+                    </div>
+
+                    <!-- Tabla de Empleados -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-10">
+                        <div class="p-6 border-b border-gray-200"><h3 class="text-xl leading-6 font-bold text-gray-900">Lista de Empleados</h3></div>
+                        <div class="overflow-x-auto"><table class="min-w-full"><tbody id="employee-table-body" class="divide-y divide-gray-200"></tbody></table></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: REPORTES -->
+            <section id="view-reports" class="view">
+                <div class="px-4 py-6 sm:px-0">
+                    <!-- Reporte de Puntualidad -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-10">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="text-xl leading-6 font-bold text-gray-900">Reporte de Puntualidad</h3>
+                        </div>
+                        <div class="p-6 bg-gray-50 flex flex-wrap gap-4 items-end">
+                            <div>
+                                <label for="punctuality-month-picker" class="block text-sm font-medium text-gray-700">Seleccionar Mes</label>
+                                <input type="month" id="punctuality-month-picker" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                             <button id="generate-punctuality-report-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">Generar Reporte</button>
+                        </div>
+                        <div id="punctuality-report-table-container" class="overflow-x-auto p-6">
+                            <!-- La tabla del reporte de puntualidad se generará aquí -->
+                        </div>
+                    </div>
+                    
+                    <!-- Reporte Mensual de Horas -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-10">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="text-xl leading-6 font-bold text-gray-900">Reporte Mensual de Horas</h3>
+                        </div>
+                        <div class="p-6 bg-gray-50 flex flex-wrap gap-4 items-end">
+                            <div>
+                                <label for="month-picker" class="block text-sm font-medium text-gray-700">Seleccionar Mes</label>
+                                <input type="month" id="month-picker" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                             <button id="generate-monthly-report-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">Generar Reporte</button>
+                        </div>
+                        <div id="monthly-report-table-container" class="overflow-x-auto p-6">
+                            <!-- La tabla del reporte mensual se generará aquí -->
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Registros de Asistencia -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-10">
+                        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                            <h3 class="text-xl leading-6 font-bold text-gray-900">Registros de Asistencia Detallados</h3>
+                            <button id="export-csv-btn" class="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition font-semibold flex items-center text-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                Exportar a CSV
+                            </button>
+                        </div>
+                        <!-- SECCIÓN DE FILTROS -->
+                        <div id="attendance-filters" class="p-6 bg-gray-50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                            <div class="lg:col-span-1"><label for="filter-start-date" class="block text-sm font-medium text-gray-700">Fecha Inicio</label><input type="date" id="filter-start-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div class="lg:col-span-1"><label for="filter-end-date" class="block text-sm font-medium text-gray-700">Fecha Fin</label><input type="date" id="filter-end-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div id="department-filter-container" class="lg:col-span-1"><label for="filter-department" class="block text-sm font-medium text-gray-700">Departamento</label><select id="filter-department" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select></div>
+                            <div id="employee-filter-container" class="lg:col-span-1"><label for="filter-employee" class="block text-sm font-medium text-gray-700">Empleado</label><select id="filter-employee" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select></div>
+                            <div class="flex space-x-2 lg:col-span-1"><button id="apply-filters-btn" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">Filtrar</button><button id="clear-filters-btn" class="w-full bg-slate-300 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-400 transition font-semibold">Limpiar</button></div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empleado</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hora de Entrada</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Hora de Salida</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendance-table-body" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                        <div id="attendance-pagination" class="p-4 border-t border-gray-200 flex items-center justify-between">
+                            <button id="prev-page-btn" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-300 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">Anterior</button>
+                            <span id="page-info" class="text-sm text-gray-600"></span>
+                            <button id="next-page-btn" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-300 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">Siguiente</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfica de Asistencia -->
+                    <div id="chart-container" class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl leading-6 font-bold text-gray-900 mb-4">Comportamiento de Asistencia por Hora</h3>
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: GESTIÓN DE USUARIOS -->
+            <section id="view-users" class="view">
+                <div class="px-4 py-6 sm:px-0">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <!-- Formulario para agregar usuario -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white p-8 rounded-xl shadow-lg">
+                                <h2 class="text-2xl font-bold mb-6 text-gray-800">Crear Nuevo Usuario</h2>
+                                <form id="add-user-form">
+                                    <div class="space-y-6">
+                                        <div><label for="new-username" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label><input type="text" id="new-username" name="new-username" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                                        <div><label for="new-password" class="block text-sm font-medium text-gray-700">Contraseña</label><input type="password" id="new-password" name="new-password" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                                        <div><label for="new-user-role" class="block text-sm font-medium text-gray-700">Rol</label><select id="new-user-role" name="new-user-role" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="manager">Gerente</option><option value="director">Director</option><option value="admin">Administrador</option><option value="place">Place (Checador)</option></select></div>
+                                        <div><label for="link-employee" class="block text-sm font-medium text-gray-700">Vincular a Empleado (Opcional)</label><select id="link-employee" name="link-employee" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Ninguno</option></select></div>
+                                    </div>
+                                    <div class="mt-8"><button type="submit" class="w-full bg-gradient-to-br from-indigo-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:shadow-lg transition font-semibold">Crear Usuario</button></div>
+                                </form>
+                            </div>
+                        </div>
+                        <!-- Tabla de usuarios existentes -->
+                        <div class="lg:col-span-2">
+                             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                                <div class="p-6 border-b border-gray-200"><h3 class="text-xl leading-6 font-bold text-gray-900">Usuarios del Sistema</h3></div>
+                                <div class="overflow-x-auto"><table class="min-w-full"><tbody id="users-table-body" class="divide-y divide-gray-200"></tbody></table></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+             <!-- VISTA: GESTIÓN DE DEPARTAMENTOS -->
+            <section id="view-departments" class="view">
+                <div class="px-4 py-6 sm:px-0">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <div class="lg:col-span-1">
+                            <div class="bg-white p-8 rounded-xl shadow-lg">
+                                <h2 class="text-2xl font-bold mb-6 text-gray-800">Añadir Departamento</h2>
+                                <form id="add-department-form">
+                                    <div class="space-y-6">
+                                        <div><label for="new-department-name" class="block text-sm font-medium text-gray-700">Nombre del Departamento</label><input type="text" id="new-department-name" name="name" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                                    </div>
+                                    <div class="mt-8"><button type="submit" class="w-full bg-gradient-to-br from-indigo-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:shadow-lg transition font-semibold">Añadir</button></div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                                <div class="p-6 border-b border-gray-200"><h3 class="text-xl leading-6 font-bold text-gray-900">Departamentos Existentes</h3></div>
+                                <div class="overflow-x-auto"><table class="min-w-full"><tbody id="departments-table-body" class="divide-y divide-gray-200"></tbody></table></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: REGISTRO DE EMPLEADO -->
+            <section id="view-register" class="view">
+                 <div class="bg-white p-8 rounded-xl shadow-lg max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-8 text-gray-800">Registrar Nuevo Empleado</h2>
+                    <form id="register-form">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                            <div class="md:col-span-1"><label for="nombres" class="block text-sm font-medium text-gray-700">Nombre(s)</label><input type="text" id="nombres" name="nombres" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div class="md:col-span-1"><label for="apellido_paterno" class="block text-sm font-medium text-gray-700">Apellidos</label><input type="text" id="apellido_paterno" name="apellido_paterno" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div><label for="id_departamento" class="block text-sm font-medium text-gray-700">Departamento</label><select id="id_departamento" name="id_departamento" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></select></div>
+                            <div><label for="puesto" class="block text-sm font-medium text-gray-700">Puesto</label><input type="text" id="puesto" name="puesto" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div><label for="hora_entrada_oficial" class="block text-sm font-medium text-gray-700">Hora de Entrada Oficial</label><input type="time" id="hora_entrada_oficial" name="hora_entrada_oficial" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div><label for="managerId" class="block text-sm font-medium text-gray-700">Jefe Directo</label><select id="managerId" name="managerId" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"><option value="">N/A</option></select></div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">Fotografía</label>
+                                <div class="mt-2 flex items-center gap-4">
+                                    <label for="fotografia" class="cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                        <span>Subir Archivo</span>
+                                        <input type="file" id="fotografia" name="fotografia" accept="image/*" class="sr-only">
+                                    </label>
+                                    <button type="button" id="take-photo-btn" class="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-indigo-200">
+                                        Tomar Foto
+                                    </button>
+                                </div>
+                                <img id="photo-preview" class="mt-4 rounded-lg max-h-40 hidden" alt="Vista previa de la foto">
+                            </div>
+                        </div>
+                        <div class="mt-10 flex justify-end space-x-4">
+                            <button type="button" data-view="dashboard" class="nav-button bg-slate-200 text-slate-800 px-6 py-3 rounded-lg hover:bg-slate-300 transition font-semibold">Cancelar</button>
+                            <button type="submit" class="bg-gradient-to-br from-indigo-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:shadow-lg transition font-semibold">Registrar</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- VISTA: KARDEX (CREDENCIAL) -->
+            <section id="view-kardex" class="view">
+                <div class="max-w-md mx-auto">
+                    <div id="kardex-print-area" class="bg-white p-2 rounded-2xl shadow-2xl" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+                        <div class="bg-slate-800 text-white p-6 rounded-t-xl">
+                            <h3 class="font-bold text-lg">Credencial de Empleado</h3>
+                        </div>
+                        <div class="p-6 text-center">
+                            <img id="kardex-photo" src="" alt="Foto del empleado" class="w-36 h-36 rounded-full mx-auto mb-4 object-cover border-8 border-white shadow-lg">
+                            <h2 id="kardex-name" class="text-3xl font-extrabold text-slate-800"></h2>
+                            <p id="kardex-position" class="text-lg text-indigo-700 font-medium"></p>
+                        </div>
+                        <div class="flex justify-center pb-6">
+                            <div id="kardex-qr" class="p-3 bg-white rounded-lg shadow-inner"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-center space-x-4 no-print">
+                         <button data-view="dashboard" class="nav-button bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 transition font-semibold">Volver</button>
+                        <button id="print-kardex-btn" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold">Imprimir</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: ESCÁNER QR -->
+            <section id="view-scanner" class="view">
+                <div class="max-w-lg mx-auto bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-center">Checador de Asistencia</h2>
+                    <div id="qr-reader" class="w-full border-4 border-dashed border-gray-200 rounded-xl overflow-hidden aspect-square"></div>
+                    <p class="text-center text-gray-500 mt-4">Apunta la cámara al código QR de la credencial.</p>
+                </div>
+            </section>
+
+            <!-- VISTA: REGISTRO FACIAL -->
+            <section id="view-facial-enrollment" class="view">
+                 <div class="bg-white p-8 rounded-xl shadow-lg max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-6 text-gray-800">Registro Biométrico Facial</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="enroll-employee-select" class="block text-sm font-medium text-gray-700">Seleccionar Empleado a Registrar</label>
+                            <select id="enroll-employee-select" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        </div>
+                        <div id="enroll-camera-container" class="hidden">
+                            <div id="facial-enrollment-container" class="w-full aspect-video bg-gray-200 rounded-lg overflow-hidden mt-4">
+                                <video id="enroll-video" autoplay muted playsinline class="w-full h-full"></video>
+                                <canvas id="enroll-canvas"></canvas>
+                            </div>
+                            <button id="capture-face-btn" class="w-full bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold mt-4">Capturar y Guardar Perfil Facial</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: CHECADOR FACIAL -->
+            <section id="view-facial-checker" class="view">
+                <div class="max-w-2xl mx-auto bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-center">Checador Facial</h2>
+                    <div id="facial-checker-container" class="w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
+                        <video id="checker-video" autoplay muted playsinline class="w-full h-full"></video>
+                        <canvas id="checker-canvas"></canvas>
+                    </div>
+                    <p class="text-center text-gray-500 mt-4">Coloca tu rostro frente a la cámara.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- VISTA: PANTALLA DE ÉXITO DE ESCANEO -->
+    <section id="view-scan-success" class="view">
+        <div class="text-center bg-white p-8 sm:p-12 rounded-2xl shadow-2xl max-w-lg w-full mx-4">
+            <img id="success-photo" src="" alt="Foto del empleado" class="w-40 h-40 rounded-full mx-auto mb-4 object-cover border-8 border-white shadow-lg">
+            <h2 id="success-name" class="text-4xl font-extrabold text-slate-800 mt-4"></h2>
+            <p id="success-action" class="text-3xl text-green-600 font-bold mt-2"></p>
+            <p id="success-timestamp" class="text-lg text-gray-500 mt-4"></p>
+        </div>
+    </section>
+
+    <!-- MODAL DE CONFIRMACIÓN PERSONALIZADO -->
+    <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-md mx-auto">
+            <h3 id="modal-title" class="text-2xl font-bold text-gray-900"></h3>
+            <p id="modal-message" class="mt-2 text-gray-600"></p>
+            <div class="mt-8 flex justify-end space-x-4">
+                <button id="modal-cancel-btn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 font-semibold">Cancelar</button>
+                <button id="modal-confirm-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE EDICIÓN DE USUARIO -->
+    <div id="edit-user-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-md mx-auto">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6">Editar Usuario</h3>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id" name="id">
+                <div class="space-y-6">
+                    <div><label for="edit-username" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label><input type="text" id="edit-username" name="username" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label for="edit-password" class="block text-sm font-medium text-gray-700">Nueva Contraseña (Opcional)</label><input type="password" id="edit-password" name="password" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label for="edit-user-role" class="block text-sm font-medium text-gray-700">Rol</label><select id="edit-user-role" name="role" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="manager">Gerente</option><option value="director">Director</option><option value="admin">Administrador</option><option value="place">Place (Checador)</option></select></div>
+                    <div><label for="edit-link-employee" class="block text-sm font-medium text-gray-700">Vincular a Empleado</label><select id="edit-link-employee" name="id_empleado" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Ninguno</option></select></div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="edit-modal-cancel-btn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 font-semibold">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-semibold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+     <!-- MODAL DE EDICIÓN DE DEPARTAMENTO -->
+    <div id="edit-department-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-md mx-auto">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6">Editar Departamento</h3>
+            <form id="edit-department-form">
+                <input type="hidden" id="edit-department-id" name="id">
+                <div class="space-y-6">
+                    <div><label for="edit-department-name" class="block text-sm font-medium text-gray-700">Nombre del Departamento</label><input type="text" id="edit-department-name" name="nombre" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="edit-department-cancel-btn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 font-semibold">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-semibold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE EDICIÓN DE EMPLEADO -->
+    <div id="edit-employee-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-2xl mx-auto">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6">Editar Empleado</h3>
+            <form id="edit-employee-form">
+                <input type="hidden" id="edit-employee-id" name="id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                    <div><label for="edit-nombres" class="block text-sm font-medium text-gray-700">Nombre(s)</label><input type="text" id="edit-nombres" name="nombres" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label for="edit-apellido_paterno" class="block text-sm font-medium text-gray-700">Apellidos</label><input type="text" id="edit-apellido_paterno" name="apellido_paterno" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label for="edit-id_departamento" class="block text-sm font-medium text-gray-700">Departamento</label><select id="edit-id_departamento" name="id_departamento" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></select></div>
+                    <div><label for="edit-puesto" class="block text-sm font-medium text-gray-700">Puesto</label><input type="text" id="edit-puesto" name="puesto" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label for="edit-hora_entrada_oficial" class="block text-sm font-medium text-gray-700">Hora de Entrada Oficial</label><input type="time" id="edit-hora_entrada_oficial" name="hora_entrada_oficial" required class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label for="edit-managerId" class="block text-sm font-medium text-gray-700">Jefe Directo</label><select id="edit-managerId" name="managerId" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="">N/A</option></select></div>
+                    <div class="md:col-span-2"><label for="edit-fotografia" class="block text-sm font-medium text-gray-700">Cambiar Fotografía (Opcional)</label><input type="file" id="edit-fotografia" name="fotografia" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"></div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="edit-employee-cancel-btn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 font-semibold">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-semibold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST DE NOTIFICACIÓN -->
+    <div id="toast-notification" class="fixed bottom-5 right-5 z-50 hidden">
+        <div id="toast-content" class="px-6 py-4 rounded-lg shadow-lg text-white font-semibold"></div>
+    </div>
+
+    <!-- MODAL PARA TOMAR FOTO -->
+    <div id="camera-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-auto">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Tomar Fotografía</h3>
+            <div class="bg-gray-200 rounded-lg overflow-hidden aspect-video mb-4">
+                <video id="camera-video" autoplay playsinline class="w-full h-full"></video>
+            </div>
+            <canvas id="camera-canvas" class="hidden"></canvas>
+            <div class="flex justify-center items-center space-x-4">
+                <button id="camera-cancel-btn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 font-semibold">Cancelar</button>
+                <button id="camera-capture-btn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-semibold">Capturar</button>
+                <button id="switch-camera-btn" title="Cambiar Cámara" class="bg-slate-500 text-white p-3 rounded-full hover:bg-slate-600 font-semibold hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.186A7.002 7.002 0 0112 17.25a7.002 7.002 0 01-7.001-7.25 1 1 0 012 0 5.002 5.002 0 009.833 1.037A5.002 5.002 0 007.167 6.101V9a1 1 0 01-2 0V3a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NUEVO: MODAL DE AVISO DE PRIVACIDAD BIOMÉTRICO -->
+    <div id="privacy-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-2xl mx-auto flex flex-col" style="max-height: 90vh;">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">CONSENTIMIENTO DE USO DE DATOS BIOMÉTRICOS</h3>
+            <div id="privacy-content" class="prose max-w-none overflow-y-auto mb-6">
+                <!-- El texto del aviso se insertará aquí dinámicamente -->
+            </div>
+            <div class="mt-auto flex justify-end space-x-4 pt-4 border-t">
+                <button id="privacy-cancel-btn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 font-semibold">Cancelar</button>
+                <button id="privacy-confirm-btn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-semibold">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- ESTADO DE LA APLICACIÓN ---
+    const API_URL = 'https://grupoamalgama.com.mx/gotime/api/?action=';
+    let currentUser = null; 
+    let attendanceChart = null;
+    let employees = [];
+    let attendance = [];
+    let users = [];
+    let departments = [];
+    let facialDescriptors = [];
+    let faceMatcher = null;
+    let recognitionInterval = null;
+    let enrollmentStream = null;
+    let recognitionStream = null;
+    let modelsLoaded = false;
+    let isDetecting = false;
+
+    let currentPage = 1;
+    const recordsPerPage = 10;
+    
+    let lastMatch = { label: null, count: 0 };
+    const CONFIRMATION_THRESHOLD = 3; 
+
+    // --- ELEMENTOS DEL DOM ---
+    const loginView = document.getElementById('login-view');
+    const appContainer = document.getElementById('app-container');
+    const loginForm = document.getElementById('login-form');
+    const logoutBtn = document.getElementById('logout-btn');
+    const reportsNavBtn = document.getElementById('reports-nav-btn');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const adminActions = document.getElementById('admin-actions');
+    const filterStartDate = document.getElementById('filter-start-date');
+    const filterEndDate = document.getElementById('filter-end-date');
+    const departmentFilterContainer = document.getElementById('department-filter-container');
+    const filterDepartment = document.getElementById('filter-department');
+    const employeeFilterContainer = document.getElementById('employee-filter-container');
+    const filterEmployee = document.getElementById('filter-employee');
+    const applyFiltersBtn = document.getElementById('apply-filters-btn');
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
+    const monthPicker = document.getElementById('month-picker');
+    const generateMonthlyReportBtn = document.getElementById('generate-monthly-report-btn');
+    const monthlyReportContainer = document.getElementById('monthly-report-table-container');
+    const punctualityMonthPicker = document.getElementById('punctuality-month-picker');
+    const generatePunctualityReportBtn = document.getElementById('generate-punctuality-report-btn');
+    const punctualityReportContainer = document.getElementById('punctuality-report-table-container');
+    
+    // --- INICIALIZACIÓN Y SESIÓN ---
+    const loadFaceApiModels = async () => {
+        if (modelsLoaded) return;
+        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+        try {
+            showToast('Cargando modelos de IA...', 'info');
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+            ]);
+            modelsLoaded = true;
+            console.log("Modelos de IA cargados correctamente.");
+            showToast('Modelos de IA listos.', 'success');
+        } catch (error) {
+            console.error("Error al cargar los modelos de IA:", error);
+            showToast("Error crítico: No se pudieron cargar los modelos de IA.", "error");
+        }
+    };
+
+    const checkSession = async () => {
+        try {
+            const response = await fetch(API_URL + 'get_session');
+            const data = await response.json();
+            if (data.loggedIn) {
+                currentUser = data.user;
+                await fetchInitialData();
+                initializeAppUI();
+            } else {
+                loginView.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error de sesión:', error);
+            loginView.classList.remove('hidden');
+        }
+    };
+
+    const fetchInitialData = async () => {
+        try {
+            const response = await fetch(API_URL + 'get_data');
+            if (!response.ok) throw new Error('Error al cargar los datos del servidor.');
+            const data = await response.json();
+            
+            employees = data.employees.map(emp => ({...emp, id: parseInt(emp.id), managerId: emp.managerId ? parseInt(emp.managerId) : null, id_departamento: emp.id_departamento ? parseInt(emp.id_departamento) : null }));
+            users = data.users.map(u => ({...u, id: parseInt(u.id), id_empleado: u.id_empleado ? parseInt(u.id_empleado) : null }));
+            attendance = data.attendance.map(att => ({
+                ...att,
+                employeeId: parseInt(att.id_empleado),
+                checkIn: att.hora_entrada ? new Date(att.hora_entrada.replace(' ', 'T')) : null,
+                checkOut: att.hora_salida ? new Date(att.hora_salida.replace(' ', 'T')) : null
+            }));
+            departments = data.departments.map(d => ({...d, id: parseInt(d.id) }));
+            facialDescriptors = data.facial_descriptors;
+        } catch (error) {
+            console.error(error);
+            showToast('No se pudieron cargar los datos. Revisa la conexión con el servidor.', 'error');
+        }
+    };
+
+    const initializeAppUI = () => {
+        loginView.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        welcomeMessage.textContent = `Bienvenido, ${currentUser.full_name}. Rol: ${currentUser.role}`;
+
+        const isAdmin = currentUser.role === 'admin';
+        const isSupervisor = ['admin', 'director', 'manager'].includes(currentUser.role);
+        const isPlaceRole = currentUser.role === 'place';
+
+        document.getElementById('app-header').classList.toggle('hidden', isPlaceRole);
+        reportsNavBtn.classList.toggle('hidden', !isSupervisor);
+        adminActions.style.display = isAdmin ? 'grid' : 'none';
+        
+        if (isPlaceRole) {
+            showView('facial-checker');
+        } else {
+            showView('dashboard');
+        }
+    };
+    
+    // --- LÓGICA DE LOGIN/LOGOUT ---
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(loginForm);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch(API_URL + 'login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Error desconocido');
+
+            currentUser = result.user;
+            await fetchInitialData();
+            initializeAppUI();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+        await fetch(API_URL + 'logout');
+        currentUser = null;
+        appContainer.classList.add('hidden');
+        loginView.classList.remove('hidden');
+        stopScanner();
+        stopFaceRecognition();
+    });
+
+    // --- NAVEGACIÓN SPA ---
+    const showView = (viewId) => {
+        document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+        document.getElementById(`view-${viewId}`).classList.add('active');
+        
+        stopScanner();
+        stopFaceRecognition();
+        stopFaceEnrollment();
+
+        if (viewId === 'scanner') startScanner();
+        if (viewId === 'facial-checker') startFaceChecker();
+        if (viewId === 'facial-enrollment') startFaceEnrollment();
+        if (viewId === 'dashboard') renderDashboard();
+        if (viewId === 'reports') renderReportsView();
+        if (viewId === 'register') {
+            populateManagerSelect(document.getElementById('managerId'));
+            populateDepartmentSelect(document.getElementById('id_departamento'));
+        }
+        if (viewId === 'users') renderUsersView();
+        if (viewId === 'departments') renderDepartmentsView();
+    };
+
+    // --- LÓGICA DE VISTAS ---
+    const renderDashboard = () => {
+        let visibleEmployees = [];
+        if (currentUser.role === 'admin' || currentUser.role === 'director') {
+            visibleEmployees = employees;
+        } else if (currentUser.role === 'manager') {
+            const managerEmployeeId = parseInt(currentUser.id_empleado);
+            const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
+            if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
+                reportIds.push(managerEmployeeId);
+            }
+            visibleEmployees = employees.filter(e => reportIds.includes(e.id));
+        } else { 
+            visibleEmployees = employees.filter(e => e.id === currentUser.id_empleado);
+        }
+        renderEmployeeTable(visibleEmployees);
+    };
+
+    const renderReportsView = () => {
+        const canSeeDepartmentFilter = ['admin', 'director'].includes(currentUser.role);
+        departmentFilterContainer.classList.toggle('hidden', !canSeeDepartmentFilter);
+        employeeFilterContainer.classList.toggle('lg:col-span-2', !canSeeDepartmentFilter);
+        employeeFilterContainer.classList.toggle('lg:col-span-1', canSeeDepartmentFilter);
+        
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        monthPicker.value = `${year}-${month}`;
+        punctualityMonthPicker.value = `${year}-${month}`;
+
+        applyFiltersAndRender();
+    };
+
+    const renderUsersView = () => {
+        renderUsersTable();
+        populateLinkableEmployees();
+    };
+
+    const renderDepartmentsView = () => {
+        renderDepartmentsTable();
+    };
+
+    const getFilteredAttendance = () => {
+        let visibleEmployees = [];
+        if (currentUser.role === 'admin' || currentUser.role === 'director') {
+            visibleEmployees = employees;
+        } else if (currentUser.role === 'manager') {
+            const managerEmployeeId = parseInt(currentUser.id_empleado);
+            const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
+            if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
+                reportIds.push(managerEmployeeId);
+            }
+            visibleEmployees = employees.filter(e => reportIds.includes(e.id));
+        }
+        
+        populateAttendanceUserFilter(visibleEmployees);
+        populateDepartmentSelect(filterDepartment, true);
+
+        let filteredAttendance = [...attendance];
+        const visibleEmployeeIds = visibleEmployees.map(e => e.id);
+        filteredAttendance = filteredAttendance.filter(a => visibleEmployeeIds.includes(a.employeeId));
+
+        const startDate = filterStartDate.value;
+        const endDate = filterEndDate.value;
+        const departmentId = filterDepartment.value;
+        const employeeId = filterEmployee.value;
+
+        if (employeeId) {
+            filteredAttendance = filteredAttendance.filter(a => a.employeeId === parseInt(employeeId));
+        }
+        if (departmentId && ['admin', 'director'].includes(currentUser.role)) {
+            const departmentEmployeeIds = employees.filter(e => e.id_departamento === parseInt(departmentId)).map(e => e.id);
+            filteredAttendance = filteredAttendance.filter(a => departmentEmployeeIds.includes(a.employeeId));
+        }
+        if (startDate) {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            filteredAttendance = filteredAttendance.filter(a => a.checkIn >= start);
+        }
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            filteredAttendance = filteredAttendance.filter(a => a.checkIn <= end);
+        }
+        return filteredAttendance;
+    }
+
+    const applyFiltersAndRender = () => {
+        currentPage = 1; 
+        const filteredData = getFilteredAttendance();
+        renderAttendanceTable(filteredData);
+        renderAttendanceChart(filteredData);
+    };
+
+    const renderEmployeeTable = (employeesToRender) => {
+        const employeeTableBody = document.getElementById('employee-table-body');
+        employeeTableBody.innerHTML = '';
+        employeesToRender.forEach(emp => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-colors';
+            
+            const biometricIcon = emp.has_biometric == 1
+                ? `<span title="Registro biométrico completo" class="ml-2 inline-block text-green-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944a11.954 11.954 0 007.834 3.055a1.944 1.944 0 011.944 1.944v9.012a1.944 1.944 0 01-1.944 1.944c-3.183 0-6.14-1.241-8.334-3.282a11.954 11.954 0 01-8.334 3.282A1.944 1.944 0 010 15.955V6.943a1.944 1.944 0 011.944-1.944c.044 0 .087.002.13.005zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" /></svg></span>` 
+                : '';
+
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <img class="h-10 w-10 rounded-full object-cover mr-4" src="${emp.fotografia}" alt="">
+                        <div class="text-sm font-medium text-gray-900 flex items-center">
+                            ${emp.nombres} ${emp.apellido_paterno} ${biometricIcon}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-600">${emp.departamento || 'N/A'}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                    <button data-id="${emp.id}" class="edit-employee-btn text-indigo-600 hover:text-indigo-900 font-semibold">Editar</button>
+                    <button data-id="${emp.id}" class="view-kardex-btn text-gray-600 hover:text-gray-900 font-semibold">Credencial</button>
+                    ${currentUser.role === 'admin' ? `<button data-id="${emp.id}" class="delete-employee-btn text-red-600 hover:text-red-900 font-semibold">Eliminar</button>` : ''}
+                </td>
+            `;
+            employeeTableBody.appendChild(row);
+        });
+    };
+
+    const renderAttendanceTable = (fullAttendanceList) => {
+        const attendanceTableBody = document.getElementById('attendance-table-body');
+        attendanceTableBody.innerHTML = '';
+
+        const startIndex = (currentPage - 1) * recordsPerPage;
+        const endIndex = startIndex + recordsPerPage;
+        const paginatedItems = fullAttendanceList.slice(startIndex, endIndex);
+
+        const sortedAttendance = [...paginatedItems].sort((a, b) => (b.checkIn || 0) - (a.checkIn || 0));
+        
+        if (sortedAttendance.length === 0) {
+            attendanceTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-gray-500">No hay registros que mostrar.</td></tr>';
+        } else {
+            sortedAttendance.forEach(att => {
+                const employee = employees.find(e => e.id === att.employeeId);
+                if (!employee) return;
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap"><div class="flex items-center"><img class="h-10 w-10 rounded-full object-cover mr-4" src="${employee.fotografia}" alt=""><div class="text-sm font-medium text-gray-900">${employee.nombres} ${employee.apellido_paterno}</div></div></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-600">${att.checkIn ? att.checkIn.toLocaleString('es-MX') : '---'}</div></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-600">${att.checkOut ? att.checkOut.toLocaleString('es-MX') : '---'}</div></td>
+                `;
+                attendanceTableBody.appendChild(row);
+            });
+        }
+
+        renderPaginationControls(fullAttendanceList.length);
+    };
+
+    const renderPaginationControls = (totalRecords) => {
+        const pageInfo = document.getElementById('page-info');
+        const prevBtn = document.getElementById('prev-page-btn');
+        const nextBtn = document.getElementById('next-page-btn');
+        const paginationContainer = document.getElementById('attendance-pagination');
+
+        if (totalRecords <= recordsPerPage) {
+            paginationContainer.classList.add('hidden');
+            return;
+        }
+        paginationContainer.classList.remove('hidden');
+
+        const totalPages = Math.ceil(totalRecords / recordsPerPage);
+
+        pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+    };
+
+    const renderUsersTable = () => {
+        const usersTableBody = document.getElementById('users-table-body');
+        usersTableBody.innerHTML = '';
+        users.forEach(user => {
+            const linkedEmployee = employees.find(e => e.id === user.id_empleado);
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-colors';
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${user.username}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">${user.role}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${linkedEmployee ? `${linkedEmployee.nombres} ${linkedEmployee.apellido_paterno}` : 'No vinculado'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                    ${user.id !== 1 ? `<button data-id="${user.id}" class="edit-user-btn text-indigo-600 hover:text-indigo-900 font-semibold">Editar</button>` : ''}
+                    ${user.id !== 1 ? `<button data-id="${user.id}" class="delete-user-btn text-red-600 hover:text-red-900 font-semibold">Eliminar</button>` : ''}
+                </td>
+            `;
+            usersTableBody.appendChild(row);
+        });
+    };
+
+    const renderDepartmentsTable = () => {
+        const departmentsTableBody = document.getElementById('departments-table-body');
+        departmentsTableBody.innerHTML = '';
+        departments.forEach(dep => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 transition-colors';
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${dep.nombre}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                    <button data-id="${dep.id}" class="edit-department-btn text-indigo-600 hover:text-indigo-900 font-semibold">Editar</button>
+                    <button data-id="${dep.id}" class="delete-department-btn text-red-600 hover:text-red-900 font-semibold">Eliminar</button>
+                </td>
+            `;
+            departmentsTableBody.appendChild(row);
+        });
+    };
+
+    // --- LÓGICA DE GRÁFICA ---
+    const renderAttendanceChart = (data) => {
+        const ctx = document.getElementById('attendanceChart').getContext('2d');
+        const labels = Array.from({ length: 15 }, (_, i) => `${i + 6}:00`);
+        const checkInData = new Array(15).fill(0);
+        const checkOutData = new Array(15).fill(0);
+
+        data.forEach(record => {
+            if (record.checkIn) {
+                const hour = record.checkIn.getHours();
+                if (hour >= 6 && hour <= 20) checkInData[hour - 6]++;
+            }
+            if (record.checkOut) {
+                const hour = record.checkOut.getHours();
+                 if (hour >= 6 && hour <= 20) checkOutData[hour - 6]++;
+            }
+        });
+
+        if (attendanceChart) attendanceChart.destroy();
+
+        attendanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Entradas',
+                    data: checkInData,
+                    borderColor: 'rgb(79, 70, 229)',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Salidas',
+                    data: checkOutData,
+                    borderColor: 'rgb(13, 148, 136)',
+                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    };
+
+    // --- LÓGICA DE FILTROS Y EXPORTACIÓN ---
+    const populateAttendanceUserFilter = (visibleEmployees) => {
+        filterEmployee.innerHTML = '<option value="">Todos los Empleados</option>';
+        visibleEmployees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = `${emp.nombres} ${emp.apellido_paterno}`;
+            filterEmployee.appendChild(option);
+        });
+    };
+    
+    const populateDepartmentSelect = (selectElement, includeAllOption = false) => {
+        selectElement.innerHTML = '';
+        if (includeAllOption) {
+            selectElement.innerHTML = '<option value="">Todos los Deptos.</option>';
+        }
+        departments.forEach(dep => {
+            const option = document.createElement('option');
+            option.value = dep.id;
+            option.textContent = dep.nombre;
+            selectElement.appendChild(option);
+        });
+    };
+
+    applyFiltersBtn.addEventListener('click', applyFiltersAndRender);
+    clearFiltersBtn.addEventListener('click', () => {
+        filterStartDate.value = '';
+        filterEndDate.value = '';
+        filterDepartment.value = '';
+        filterEmployee.value = '';
+        applyFiltersAndRender();
+    });
+
+    document.getElementById('prev-page-btn').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            const filteredData = getFilteredAttendance();
+            renderAttendanceTable(filteredData);
+        }
+    });
+
+    document.getElementById('next-page-btn').addEventListener('click', () => {
+        const totalRecords = getFilteredAttendance().length;
+        const totalPages = Math.ceil(totalRecords / recordsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            const filteredData = getFilteredAttendance();
+            renderAttendanceTable(filteredData);
+        }
+    });
+
+    const exportAttendanceToCSV = () => {
+        const data = getFilteredAttendance();
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+        csvContent += "Empleado,Departamento,Fecha Entrada,Hora Entrada,Fecha Salida,Hora Salida\r\n";
+
+        data.forEach(record => {
+            const employee = employees.find(e => e.id === record.employeeId);
+            if (!employee) return;
+
+            const checkInDate = record.checkIn ? record.checkIn.toLocaleDateString('es-MX') : '';
+            const checkInTime = record.checkIn ? record.checkIn.toLocaleTimeString('es-MX') : '';
+            const checkOutDate = record.checkOut ? record.checkOut.toLocaleDateString('es-MX') : '';
+            const checkOutTime = record.checkOut ? record.checkOut.toLocaleTimeString('es-MX') : '';
+            
+            const row = `"${employee.nombres} ${employee.apellido_paterno}","${employee.departamento}","${checkInDate}","${checkInTime}","${checkOutDate}","${checkOutTime}"`;
+            csvContent += row + "\r\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "Reporte_Asistencia_GoTime.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    exportCsvBtn.addEventListener('click', exportAttendanceToCSV);
+
+    // --- MÓDULO DE GESTIÓN DE USUARIOS ---
+    const populateLinkableEmployees = (currentUserToEdit = null) => {
+        const linkEmployeeSelect = document.getElementById('link-employee');
+        const editLinkEmployeeSelect = document.getElementById('edit-link-employee');
+        
+        [linkEmployeeSelect, editLinkEmployeeSelect].forEach(select => {
+            select.innerHTML = '<option value="">Ninguno</option>';
+            const unlinkedEmployees = employees.filter(emp => !users.some(u => u.id_empleado === emp.id));
+            
+            if (currentUserToEdit && currentUserToEdit.id_empleado) {
+                const currentLinkedEmployee = employees.find(e => e.id === currentUserToEdit.id_empleado);
+                if(currentLinkedEmployee && !unlinkedEmployees.some(e => e.id === currentLinkedEmployee.id)) {
+                    unlinkedEmployees.push(currentLinkedEmployee);
+                }
+            }
+
+            unlinkedEmployees.forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.id;
+                option.textContent = `${emp.nombres} ${emp.apellido_paterno}`;
+                select.appendChild(option);
+            });
+        });
+    };
+
+    document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        
+        try {
+            const response = await fetch(API_URL + 'add_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: data['new-username'],
+                    password: data['new-password'],
+                    role: data['new-user-role'],
+                    id_empleado: data['link-employee']
+                })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            
+            await fetchInitialData();
+            renderUsersView();
+            e.target.reset();
+            showToast('Usuario creado con éxito.', 'success');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+    // --- MÓDULO DE REGISTRO DE EMPLEADOS ---
+    const populateManagerSelect = (selectElement) => {
+        selectElement.innerHTML = '<option value="">N/A</option>';
+        const managers = employees.filter(e => {
+            const user = users.find(u => u.id_empleado === e.id);
+            return user && (user.role === 'manager' || user.role === 'director');
+        });
+        managers.forEach(mgr => {
+            const option = document.createElement('option');
+            option.value = mgr.id;
+            option.textContent = `${mgr.nombres} ${mgr.apellido_paterno}`;
+            selectElement.appendChild(option);
+        });
+    };
+
+    document.getElementById('fotografia').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                document.getElementById('photo-preview').src = event.target.result;
+                document.getElementById('photo-preview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        try {
+            const response = await fetch(API_URL + 'add_employee', {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Error en la respuesta del servidor.');
+            
+            const newEmployee = await response.json();
+            await fetchInitialData();
+            
+            showToast(`Empleado ${newEmployee.nombres} registrado.`, 'success');
+            e.target.reset();
+            document.getElementById('photo-preview').classList.add('hidden');
+            showView('dashboard');
+        } catch (error) {
+            console.error(error);
+            showToast('Error al registrar el empleado.', 'error');
+        }
+    });
+
+    // --- LÓGICA PARA TOMAR FOTO ---
+    let cameraStream = null;
+    let availableCameras = [];
+    let currentCameraIndex = 0;
+    const cameraModal = document.getElementById('camera-modal');
+    const videoElement = document.getElementById('camera-video');
+    const canvasElement = document.getElementById('camera-canvas');
+    const photoPreview = document.getElementById('photo-preview');
+    const fotografiaInput = document.getElementById('fotografia');
+
+    const openCamera = async () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            availableCameras = devices.filter(device => device.kind === 'videoinput');
+            
+            if (availableCameras.length === 0) throw new Error("No se encontraron cámaras.");
+
+            document.getElementById('switch-camera-btn').classList.toggle('hidden', availableCameras.length <= 1);
+
+            const constraints = {
+                video: { deviceId: { exact: availableCameras[currentCameraIndex].deviceId } }
+            };
+
+            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            videoElement.srcObject = cameraStream;
+            cameraModal.classList.remove('hidden');
+
+        } catch (err) {
+            console.error("Error al acceder a la cámara:", err);
+            showToast("No se pudo acceder a la cámara. Revisa los permisos.", "error");
+        }
+    };
+
+    const closeCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        cameraModal.classList.add('hidden');
+        currentCameraIndex = 0;
+        availableCameras = [];
+    };
+
+    const switchCamera = () => {
+        if (availableCameras.length > 1) {
+            currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+            openCamera();
+        }
+    };
+
+    document.getElementById('take-photo-btn').addEventListener('click', openCamera);
+    document.getElementById('camera-cancel-btn').addEventListener('click', closeCamera);
+    document.getElementById('switch-camera-btn').addEventListener('click', switchCamera);
+    document.getElementById('camera-capture-btn').addEventListener('click', () => {
+        const context = canvasElement.getContext('2d');
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+        context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+        
+        const dataUrl = canvasElement.toDataURL('image/jpeg');
+        photoPreview.src = dataUrl;
+        photoPreview.classList.remove('hidden');
+
+        canvasElement.toBlob(blob => {
+            const file = new File([blob], "fotografia.jpg", { type: "image/jpeg" });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fotografiaInput.files = dataTransfer.files;
+        }, 'image/jpeg');
+
+        closeCamera();
+    });
+
+
+    // --- MÓDULO DE KARDEX ---
+    const renderKardex = (employeeId) => {
+        const employee = employees.find(e => e.id === parseInt(employeeId));
+        if (!employee) return;
+        document.getElementById('kardex-photo').src = employee.fotografia;
+        document.getElementById('kardex-name').textContent = `${employee.nombres} ${employee.apellido_paterno}`;
+        document.getElementById('kardex-position').textContent = employee.puesto;
+        const qrContainer = document.getElementById('kardex-qr');
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, { text: employee.id.toString(), width: 180, height: 180 });
+        showView('kardex');
+    };
+    
+    document.getElementById('print-kardex-btn').addEventListener('click', () => window.print());
+
+    // --- MÓDULO DE ESCÁNER QR ---
+    let html5QrCode;
+    const startScanner = () => {
+        if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
+        const config = { fps: 10, qrbox: { width: 280, height: 280 } };
+        html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, (error) => {}).catch(err => {
+            document.getElementById('qr-reader').innerHTML = `<div class="p-4 text-red-700 bg-red-100 rounded-md">Error al iniciar la cámara.</div>`;
+        });
+    };
+    const stopScanner = () => {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().catch(err => {});
+        }
+    };
+    const onScanSuccess = async (decodedText, decodedResult) => {
+        stopScanner();
+        const employeeId = parseInt(decodedText, 10);
+        await processCheckInOut(employeeId);
+    };
+
+    // --- LÓGICA DE RECONOCIMIENTO FACIAL ---
+    const stopFaceRecognition = () => {
+        if (recognitionInterval) {
+            clearTimeout(recognitionInterval);
+            recognitionInterval = null;
+        }
+        if (recognitionStream) {
+            recognitionStream.getTracks().forEach(track => track.stop());
+            recognitionStream = null;
+        }
+        isDetecting = false;
+    };
+
+    const stopFaceEnrollment = () => {
+        if (enrollmentStream) {
+            enrollmentStream.getTracks().forEach(track => track.stop());
+            enrollmentStream = null;
+        }
+        document.getElementById('enroll-camera-container').classList.add('hidden');
+        document.getElementById('enroll-employee-select').value = "";
+    };
+
+    const startFaceEnrollment = async () => {
+        if (!modelsLoaded) {
+            showToast("Los modelos de IA aún no están cargados.", "info");
+            await loadFaceApiModels();
+        }
+        
+        const employeeSelect = document.getElementById('enroll-employee-select');
+        stopFaceEnrollment(); 
+        
+        employeeSelect.innerHTML = '<option value="">Selecciona un empleado</option>';
+        const employeesToEnroll = employees.filter(emp => emp.has_biometric == 0);
+        
+        if (employeesToEnroll.length === 0) {
+            employeeSelect.innerHTML = '<option value="">Todos los empleados ya tienen registro</option>';
+            employeeSelect.disabled = true;
+        } else {
+            employeeSelect.disabled = false;
+            employeesToEnroll.forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.id;
+                option.textContent = `${emp.nombres} ${emp.apellido_paterno}`;
+                employeeSelect.appendChild(option);
+            });
+        }
+
+        employeeSelect.onchange = (e) => {
+            const selectedEmployeeId = e.target.value;
+            if (!selectedEmployeeId) {
+                stopFaceEnrollment();
+                return;
+            }
+            
+            const employee = employees.find(emp => emp.id === parseInt(selectedEmployeeId));
+            showPrivacyModal(employee.nombres + ' ' + employee.apellido_paterno, () => {
+                initiateEnrollmentCamera();
+            });
+        };
+    };
+
+    const initiateEnrollmentCamera = async () => {
+        document.getElementById('enroll-camera-container').classList.remove('hidden');
+        const video = document.getElementById('enroll-video');
+        try {
+            enrollmentStream = await navigator.mediaDevices.getUserMedia({ video: {} });
+            video.srcObject = enrollmentStream;
+        } catch (err) {
+            console.error("Error al acceder a la cámara:", err);
+            showToast("No se pudo acceder a la cámara.", "error");
+            document.getElementById('enroll-camera-container').classList.add('hidden');
+        }
+    }
+
+    const startFaceChecker = async () => {
+        if (!modelsLoaded) {
+            showToast("Los modelos de IA aún no están cargados.", "info");
+            return;
+        }
+
+        const labeledFaceDescriptors = await Promise.all(
+            facialDescriptors
+                .filter(fd => fd.descriptor)
+                .map(async (fd) => {
+                    try {
+                        const descriptor = JSON.parse(fd.descriptor);
+                        return new faceapi.LabeledFaceDescriptors(fd.id_empleado.toString(), [new Float32Array(Object.values(descriptor))]);
+                    } catch (e) {
+                        console.error("Error parsing descriptor for employee:", fd.id_empleado, e);
+                        return null;
+                    }
+                })
+        ).then(descriptors => descriptors.filter(d => d !== null));
+        
+        if (labeledFaceDescriptors.length === 0) {
+            showToast("No hay perfiles faciales registrados para comparar.", "info");
+            return;
+        }
+        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+
+        const video = document.getElementById('checker-video');
+        const canvas = document.getElementById('checker-canvas');
+        
+        try {
+            recognitionStream = await navigator.mediaDevices.getUserMedia({ video: {} });
+            video.srcObject = recognitionStream;
+        } catch (err) {
+            console.error("Error al acceder a la cámara:", err);
+            showToast("No se pudo acceder a la cámara.", "error");
+            return;
+        }
+
+        const runFaceDetection = async () => {
+            if (isDetecting || !recognitionStream) return;
+            isDetecting = true;
+
+            try {
+                if (video.paused || video.ended) {
+                    isDetecting = false;
+                    return;
+                }
+
+                const displaySize = { width: video.clientWidth, height: video.clientHeight };
+                faceapi.matchDimensions(canvas, displaySize);
+
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                
+                const results = resizedDetections.map(d => ({
+                    detection: d,
+                    match: faceMatcher.findBestMatch(d.descriptor)
+                }));
+
+                let bestMatchInFrame = null;
+                if (results.length > 0) {
+                    bestMatchInFrame = results.reduce((best, current) => 
+                        (current.match.distance < best.match.distance) ? current : best
+                    );
+                }
+                
+                if (bestMatchInFrame && bestMatchInFrame.match.label !== 'unknown') {
+                    const currentLabel = bestMatchInFrame.match.label;
+                    if (currentLabel === lastMatch.label) {
+                        lastMatch.count++;
+                    } else {
+                        lastMatch = { label: currentLabel, count: 1 };
+                    }
+                } else {
+                    lastMatch = { label: null, count: 0 };
+                }
+
+                results.forEach(result => {
+                    const box = result.detection.detection.box;
+                    let label = 'No Identificado';
+                    let boxColor = 'red';
+
+                    if (result.match.label !== 'unknown') {
+                        const employee = employees.find(e => e.id === parseInt(result.match.label));
+                        if(employee) {
+                            if (result.match.label === lastMatch.label) {
+                                label = `${employee.nombres} (${lastMatch.count}/${CONFIRMATION_THRESHOLD})`;
+                                boxColor = lastMatch.count >= CONFIRMATION_THRESHOLD ? 'green' : 'orange';
+                            } else {
+                                label = employee.nombres;
+                                boxColor = 'blue';
+                            }
+                        }
+                    }
+                    const drawBox = new faceapi.draw.DrawBox(box, { label, boxColor });
+                    drawBox.draw(canvas);
+                });
+
+                if (lastMatch.count >= CONFIRMATION_THRESHOLD) {
+                    stopFaceRecognition();
+                    processCheckInOut(parseInt(lastMatch.label));
+                    lastMatch = { label: null, count: 0 };
+                    return;
+                }
+                
+                if (recognitionStream) {
+                    recognitionInterval = setTimeout(runFaceDetection, 100);
+                }
+
+            } catch (error) {
+                console.error("Error en el ciclo de detección:", error);
+            } finally {
+                isDetecting = false;
+            }
+        };
+
+        video.addEventListener('play', () => {
+            runFaceDetection();
+        });
+    };
+    
+    // --- Lógica Central de Checador ---
+    const playSound = (soundFile) => {
+        const audio = new Audio(`sounds/${soundFile}`);
+        audio.play().catch(error => {
+            console.error(`Error al reproducir el sonido ${soundFile}:`, error);
+        });
+    };
+
+    const processCheckInOut = async (employeeId) => {
+        const employee = employees.find(e => e.id === employeeId);
+        if (!employee) {
+            showToast(`Error: Empleado con ID ${employeeId} no encontrado.`, 'error');
+            if (currentUser.role === 'place') {
+                setTimeout(() => showView('facial-checker'), 2500);
+            }
+            return;
+        }
+
+        try {
+            const response = await fetch(API_URL + 'check_in_out', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId: employeeId })
+            });
+            if (!response.ok) throw new Error('Error en el servidor al registrar asistencia.');
+
+            const result = await response.json();
+            const now = new Date(result.timestamp.replace(' ', 'T'));
+            
+            await fetchInitialData();
+
+            const actionMessage = result.action === 'check_in' ? 'Entrada Registrada' : 'Salida Registrada';
+            
+            if (result.action === 'check_in') {
+                playSound('entrada.mp3');
+            } else if (result.action === 'check_out') {
+                playSound('salida.mp3');
+            }
+
+            document.getElementById('success-photo').src = employee.fotografia;
+            document.getElementById('success-name').textContent = `${employee.nombres} ${employee.apellido_paterno}`;
+            document.getElementById('success-action').textContent = actionMessage;
+            document.getElementById('success-timestamp').textContent = now.toLocaleString('es-MX', { dateStyle: 'full', timeStyle: 'short' });
+            showView('scan-success');
+
+            setTimeout(() => {
+                const isPlaceRole = currentUser.role === 'place';
+                if (isPlaceRole) {
+                    showView('facial-checker');
+                } else {
+                    showView('dashboard');
+                }
+            }, 3000);
+
+        } catch (error) {
+            console.error(error);
+            showToast('Error al registrar la asistencia.', 'error');
+            const isPlaceRole = currentUser.role === 'place';
+            if (isPlaceRole) setTimeout(() => showView('facial-checker'), 2500);
+        }
+    };
+
+    // --- MODALES ---
+    const showModal = (title, message, onConfirm) => {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        const confirmBtn = document.getElementById('modal-confirm-btn');
+        const cancelBtn = document.getElementById('modal-cancel-btn');
+        const confirmHandler = () => { onConfirm(); closeModal(); };
+        const cancelHandler = () => closeModal();
+        confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+        cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+        document.getElementById('modal-confirm-btn').addEventListener('click', confirmHandler);
+        document.getElementById('modal-cancel-btn').addEventListener('click', cancelHandler);
+        document.getElementById('confirmation-modal').classList.remove('hidden');
+    };
+    const closeModal = () => document.getElementById('confirmation-modal').classList.add('hidden');
+
+    const privacyModal = document.getElementById('privacy-modal');
+    const privacyContent = document.getElementById('privacy-content');
+    const privacyConfirmBtn = document.getElementById('privacy-confirm-btn');
+    const privacyCancelBtn = document.getElementById('privacy-cancel-btn');
+
+    // MODIFICACIÓN: Nuevo texto del aviso de privacidad
+    const getPrivacyNoticeText = (employeeName) => {
+        return `
+            <p>Por medio del presente, yo, <strong class="text-indigo-600">${employeeName}</strong>, manifiesto que he sido informado sobre el uso de mis datos biométricos (reconocimiento facial) exclusivamente con la finalidad de llevar control de asistencia y acceso a las instalaciones de la empresa.</p>
+            <p>Declaro haber leído y entendido el Aviso de Privacidad proporcionado por la empresa, en el cual se especifican los fines del tratamiento, las medidas de seguridad aplicables y los medios para ejercer mis derechos de acceso, rectificación, cancelación u oposición (ARCO).</p>
+            <p>Así mismo, otorgo mi consentimiento expreso para el tratamiento de mis datos biométricos, reconociendo que serán tratados de manera confidencial y no serán utilizados para fines distintos a los señalados.</p>
+        `;
+    };
+
+    const showPrivacyModal = (employeeName, onConfirm) => {
+        privacyContent.innerHTML = getPrivacyNoticeText(employeeName);
+
+        const confirmHandler = () => {
+            onConfirm();
+            closePrivacyModal(false);
+        };
+        
+        privacyConfirmBtn.replaceWith(privacyConfirmBtn.cloneNode(true));
+        document.getElementById('privacy-confirm-btn').addEventListener('click', confirmHandler);
+
+        privacyCancelBtn.addEventListener('click', () => closePrivacyModal(true));
+        
+        privacyModal.classList.remove('hidden');
+    };
+
+    const closePrivacyModal = (resetSelect) => {
+        privacyModal.classList.add('hidden');
+        if (resetSelect) {
+            document.getElementById('enroll-employee-select').value = ""; 
+        }
+    };
+    
+    const editUserModal = document.getElementById('edit-user-modal');
+    const showEditUserModal = (user) => {
+        populateLinkableEmployees(user);
+        document.getElementById('edit-user-id').value = user.id;
+        document.getElementById('edit-username').value = user.username;
+        document.getElementById('edit-user-role').value = user.role;
+        document.getElementById('edit-link-employee').value = user.id_empleado || '';
+        document.getElementById('edit-password').value = '';
+        editUserModal.classList.remove('hidden');
+    };
+    const closeEditUserModal = () => editUserModal.classList.add('hidden');
+    document.getElementById('edit-modal-cancel-btn').addEventListener('click', closeEditUserModal);
+    document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch(API_URL + 'edit_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            
+            await fetchInitialData();
+            renderUsersView();
+            closeEditUserModal();
+            showToast('Usuario actualizado con éxito.', 'success');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+    // --- MODAL DEPARTAMENTOS ---
+    const editDepartmentModal = document.getElementById('edit-department-modal');
+    const showEditDepartmentModal = (dep) => {
+        document.getElementById('edit-department-id').value = dep.id;
+        document.getElementById('edit-department-name').value = dep.nombre;
+        editDepartmentModal.classList.remove('hidden');
+    };
+    const closeEditDepartmentModal = () => editDepartmentModal.classList.add('hidden');
+    document.getElementById('edit-department-cancel-btn').addEventListener('click', closeEditDepartmentModal);
+    document.getElementById('edit-department-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        try {
+            const response = await fetch(API_URL + 'edit_department', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            await fetchInitialData();
+            renderDepartmentsView();
+            closeEditDepartmentModal();
+            showToast('Departamento actualizado.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+    });
+     document.getElementById('add-department-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        try {
+            const response = await fetch(API_URL + 'add_department', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre: data.name })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            await fetchInitialData();
+            renderDepartmentsView();
+            e.target.reset();
+            showToast('Departamento creado.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+    });
+
+    // --- MODAL EMPLEADOS ---
+    const editEmployeeModal = document.getElementById('edit-employee-modal');
+    const showEditEmployeeModal = (employee) => {
+        document.getElementById('edit-employee-id').value = employee.id;
+        document.getElementById('edit-nombres').value = employee.nombres;
+        document.getElementById('edit-apellido_paterno').value = employee.apellido_paterno;
+        document.getElementById('edit-puesto').value = employee.puesto;
+        document.getElementById('edit-hora_entrada_oficial').value = employee.hora_entrada_oficial;
+        
+        const deparmentSelect = document.getElementById('edit-id_departamento');
+        populateDepartmentSelect(deparmentSelect);
+        deparmentSelect.value = employee.id_departamento || '';
+
+        const managerSelect = document.getElementById('edit-managerId');
+        populateManagerSelect(managerSelect);
+        managerSelect.value = employee.managerId || '';
+
+        editEmployeeModal.classList.remove('hidden');
+    };
+    const closeEditEmployeeModal = () => editEmployeeModal.classList.add('hidden');
+    document.getElementById('edit-employee-cancel-btn').addEventListener('click', closeEditEmployeeModal);
+    document.getElementById('edit-employee-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+            const response = await fetch(API_URL + 'edit_employee', {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Error al actualizar el empleado.');
+            
+            await fetchInitialData();
+            renderDashboard();
+            closeEditEmployeeModal();
+            showToast('Empleado actualizado con éxito.', 'success');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+
+    const showToast = (message, type = 'info') => {
+        const toast = document.getElementById('toast-notification');
+        const toastContent = document.getElementById('toast-content');
+        toastContent.textContent = message;
+        const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
+        toastContent.className = `px-6 py-4 rounded-lg shadow-lg text-white font-semibold ${colors[type]}`;
+        toast.classList.remove('hidden');
+        toast.style.animation = 'slide-in 0.5s forwards, slide-out 0.5s 3.5s forwards';
+        setTimeout(() => toast.classList.add('hidden'), 4000);
+    };
+
+    // --- MANEJO DE EVENTOS DELEGADOS ---
+    document.body.addEventListener('click', async (e) => {
+        const target = e.target;
+        
+        const navButton = target.closest('.nav-button');
+        if (navButton) {
+            if (navButton.dataset.view === 'dashboard' && document.getElementById('view-register').classList.contains('active')) {
+                document.getElementById('register-form').reset();
+                const photoPreview = document.getElementById('photo-preview');
+                photoPreview.src = '';
+                photoPreview.classList.add('hidden');
+            }
+            showView(navButton.dataset.view);
+        }
+
+        if (target.closest('.delete-employee-btn')) {
+            const employeeId = parseInt(target.closest('.delete-employee-btn').dataset.id);
+            const employee = employees.find(emp => emp.id === employeeId);
+            showModal('Confirmar Eliminación', `¿Seguro que deseas eliminar a ${employee.nombres}?`, async () => {
+                try {
+                    const response = await fetch(`${API_URL}delete_employee&id=${employeeId}`);
+                    if (!response.ok) throw new Error('Error al eliminar.');
+                    await fetchInitialData();
+                    showToast('Empleado eliminado.', 'success');
+                    renderDashboard();
+                } catch (error) { showToast('Error al eliminar el empleado.', 'error'); }
+            });
+        }
+        if (target.closest('.edit-employee-btn')) {
+            const employeeId = parseInt(target.closest('.edit-employee-btn').dataset.id);
+            const employee = employees.find(emp => emp.id === employeeId);
+            if (employee) showEditEmployeeModal(employee);
+        }
+        if (target.closest('.delete-user-btn')) {
+            const userId = parseInt(target.closest('.delete-user-btn').dataset.id);
+            showModal('Confirmar Eliminación', `¿Seguro que deseas eliminar este usuario?`, async () => {
+                try {
+                    const response = await fetch(`${API_URL}delete_user&id=${userId}`);
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error);
+                    users = users.filter(u => u.id !== userId);
+                    showToast('Usuario eliminado.', 'success');
+                    renderUsersView();
+                } catch (error) { showToast(error.message, 'error'); }
+            });
+        }
+        if (target.closest('.edit-user-btn')) {
+            const userId = parseInt(target.closest('.edit-user-btn').dataset.id);
+            const user = users.find(u => u.id === userId);
+            if (user) showEditUserModal(user);
+        }
+        if (target.closest('.delete-department-btn')) {
+            const depId = parseInt(target.closest('.delete-department-btn').dataset.id);
+            showModal('Confirmar Eliminación', `¿Seguro que deseas eliminar este departamento? Los empleados asignados quedarán sin departamento.`, async () => {
+                try {
+                    const response = await fetch(`${API_URL}delete_department&id=${depId}`);
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error);
+                    await fetchInitialData();
+                    showToast('Departamento eliminado.', 'success');
+                    renderDepartmentsView();
+                } catch (error) { showToast(error.message, 'error'); }
+            });
+        }
+        if (target.closest('.edit-department-btn')) {
+            const depId = parseInt(target.closest('.edit-department-btn').dataset.id);
+            const dep = departments.find(d => d.id === depId);
+            if (dep) showEditDepartmentModal(dep);
+        }
+        if (target.closest('.view-kardex-btn')) {
+            renderKardex(target.closest('.view-kardex-btn').dataset.id);
+        }
+    });
+    
+    document.getElementById('capture-face-btn').addEventListener('click', async () => {
+        const employeeId = document.getElementById('enroll-employee-select').value;
+        const video = document.getElementById('enroll-video');
+        if (!employeeId) {
+            showToast("Por favor, selecciona un empleado.", "info");
+            return;
+        }
+
+        showToast("Procesando rostro...", "info");
+        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+
+        if (!detection) {
+            showToast("No se detectó ningún rostro. Asegúrate de estar frente a la cámara.", "error");
+            return;
+        }
+
+        try {
+            const response = await fetch(API_URL + 'save_facial_descriptor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_empleado: employeeId,
+                    descriptor: detection.descriptor
+                })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            
+            await fetchInitialData();
+            showToast("Perfil facial guardado con éxito.", "success");
+            showView('dashboard');
+        } catch (error) {
+            showToast(`Error al guardar el perfil: ${error.message}`, "error");
+        }
+    });
+
+    // --- Lógica del Reporte Mensual ---
+    generateMonthlyReportBtn.addEventListener('click', () => {
+        const monthValue = monthPicker.value;
+        if (!monthValue) {
+            showToast('Por favor, selecciona un mes.', 'info');
+            return;
+        }
+        const [year, month] = monthValue.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        let visibleEmployees = [];
+        if (currentUser.role === 'admin' || currentUser.role === 'director') {
+            visibleEmployees = employees;
+        } else if (currentUser.role === 'manager') {
+            const managerEmployeeId = parseInt(currentUser.id_empleado);
+            const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
+            if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
+                reportIds.push(managerEmployeeId);
+            }
+            visibleEmployees = employees.filter(e => reportIds.includes(e.id));
+        }
+
+        const monthAttendance = attendance.filter(att => {
+            const attDate = new Date(att.checkIn);
+            return attDate.getFullYear() === year && (attDate.getMonth() + 1) === month;
+        });
+
+        let tableHTML = `<table class="min-w-full text-sm text-left text-gray-500">`;
+        let headerHTML = `<thead class="text-xs text-gray-700 uppercase bg-gray-100"><tr><th scope="col" class="sticky-col px-6 py-3">Empleado</th>`;
+        for (let day = 1; day <= daysInMonth; day++) {
+            headerHTML += `<th scope="col" class="px-6 py-3 text-center">${day}</th>`;
+        }
+        headerHTML += `<th scope="col" class="px-6 py-3 text-center font-bold">Total Horas</th></tr></thead>`;
+        
+        let bodyHTML = '<tbody>';
+        visibleEmployees.forEach(emp => {
+            if (users.some(u => u.id_empleado === emp.id && u.role === 'place')) return;
+
+            let totalHours = 0;
+            bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50"><td class="sticky-col px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${emp.nombres} ${emp.apellido_paterno}</td>`;
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayRecords = monthAttendance.filter(att => {
+                    const attDate = new Date(att.checkIn);
+                    return att.employeeId === emp.id && attDate.getDate() === day;
+                });
+
+                let hoursWorked = 0;
+                let incomplete = false;
+                dayRecords.forEach(rec => {
+                    if (rec.checkIn && rec.checkOut) {
+                        hoursWorked += (rec.checkOut - rec.checkIn) / (1000 * 60 * 60);
+                    } else {
+                        incomplete = true;
+                    }
+                });
+                
+                totalHours += hoursWorked;
+                
+                if (dayRecords.length > 0) {
+                    if (incomplete) {
+                        bodyHTML += `<td class="px-6 py-4 text-center text-yellow-600">Incompleto</td>`;
+                    } else {
+                        bodyHTML += `<td class="px-6 py-4 text-center">${hoursWorked.toFixed(1)}h</td>`;
+                    }
+                } else {
+                    bodyHTML += `<td class="px-6 py-4 text-center">-</td>`;
+                }
+            }
+            bodyHTML += `<td class="px-6 py-4 text-center font-bold">${totalHours.toFixed(1)}h</td></tr>`;
+        });
+        bodyHTML += '</tbody>';
+
+        tableHTML += headerHTML + bodyHTML + '</table>';
+        monthlyReportContainer.innerHTML = tableHTML;
+    });
+
+    // --- Lógica del Reporte de Puntualidad ---
+    generatePunctualityReportBtn.addEventListener('click', async () => {
+        const monthValue = punctualityMonthPicker.value;
+        if (!monthValue) {
+            showToast('Por favor, selecciona un mes.', 'info');
+            return;
+        }
+        const [year, month] = monthValue.split('-').map(Number);
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${daysInMonth}`;
+
+        try {
+            const response = await fetch(`${API_URL}get_punctuality_report&start=${startDate}&end=${endDate}`);
+            if(!response.ok) throw new Error('No se pudo generar el reporte.');
+            const reportData = await response.json();
+            renderPunctualityTable(reportData, daysInMonth);
+        } catch(error) {
+            showToast(error.message, 'error');
+        }
+    });
+
+    const renderPunctualityTable = (data, daysInMonth) => {
+        let visibleEmployees = [];
+        if (currentUser.role === 'admin' || currentUser.role === 'director') {
+            visibleEmployees = employees;
+        } else if (currentUser.role === 'manager') {
+            const managerEmployeeId = parseInt(currentUser.id_empleado);
+            const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
+            if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
+                reportIds.push(managerEmployeeId);
+            }
+            visibleEmployees = employees.filter(e => reportIds.includes(e.id));
+        }
+        const visibleEmployeeNames = visibleEmployees.map(e => `${e.nombres} ${e.apellido_paterno}`);
+        const filteredData = data.filter(report => visibleEmployeeNames.includes(report.name));
+
+
+        let tableHTML = `<table class="min-w-full text-sm text-left text-gray-500">`;
+        let headerHTML = `<thead class="text-xs text-gray-700 uppercase bg-gray-100"><tr><th scope="col" class="sticky-col px-6 py-3">Empleado</th>`;
+        for (let day = 1; day <= daysInMonth; day++) {
+            headerHTML += `<th scope="col" class="px-6 py-3 text-center">${day}</th>`;
+        }
+        headerHTML += `<th scope="col" class="px-6 py-3 text-center font-bold bg-orange-100">Retardos</th>`;
+        headerHTML += `<th scope="col" class="px-6 py-3 text-center font-bold bg-red-100">Ausencias</th>`;
+        headerHTML += `</tr></thead>`;
+
+        let bodyHTML = '<tbody>';
+        filteredData.forEach(empReport => {
+             let totalLates = 0;
+             let totalAbsences = 0;
+
+             bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50"><td class="sticky-col px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${empReport.name}</td>`;
+             for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = `${punctualityMonthPicker.value}-${String(day).padStart(2, '0')}`;
+                const dayData = empReport.days[dayStr];
+                let cellHTML = `<td class="px-6 py-4 text-center">-</td>`;
+                if (dayData) {
+                    switch(dayData.status) {
+                        case 'Puntual':
+                            cellHTML = `<td class="px-6 py-4 text-center text-green-600 font-semibold">✓</td>`;
+                            break;
+                        case 'Retardo':
+                            cellHTML = `<td class="px-6 py-4 text-center text-orange-500 font-semibold">${dayData.minutes}m</td>`;
+                            totalLates++;
+                            break;
+                        case 'Ausencia':
+                            cellHTML = `<td class="px-6 py-4 text-center text-red-600 font-semibold">X</td>`;
+                            totalAbsences++;
+                            break;
+                    }
+                }
+                bodyHTML += cellHTML;
+             }
+             bodyHTML += `<td class="px-6 py-4 text-center font-bold bg-orange-50">${totalLates}</td>`;
+             bodyHTML += `<td class="px-6 py-4 text-center font-bold bg-red-50 text-red-600">${totalAbsences}</td>`;
+             bodyHTML += `</tr>`;
+        });
+        bodyHTML += '</tbody>';
+
+        tableHTML += headerHTML + bodyHTML + '</table>';
+        punctualityReportContainer.innerHTML = tableHTML;
+    };
+    
+    // --- Carga inicial ---
+    loadFaceApiModels();
+    checkSession();
+});
+</script>
+
+</body>
+</html>
+

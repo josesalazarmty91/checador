@@ -1,0 +1,22 @@
+[04-Aug-2025 19:16:12 America/Monterrey] PHP Warning:  Undefined array key "password" in /home/grupoam6/public_html/gotime/api/index.php on line 213
+[04-Aug-2025 19:16:13 America/Monterrey] PHP Warning:  Undefined array key "username" in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 19:16:13 America/Monterrey] PHP Warning:  Undefined array key "role" in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:45:27 America/Monterrey] PHP Warning:  Undefined array key "password" in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:45:27 America/Monterrey] PHP Warning:  Undefined array key "username" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:45:27 America/Monterrey] PHP Warning:  Undefined array key "role" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:45:40 America/Monterrey] PHP Warning:  Trying to access array offset on value of type null in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:45:40 America/Monterrey] PHP Warning:  Trying to access array offset on value of type null in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:45:40 America/Monterrey] PHP Warning:  Trying to access array offset on value of type null in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:45:49 America/Monterrey] PHP Warning:  Undefined array key "password" in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:45:49 America/Monterrey] PHP Warning:  Undefined array key "username" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:45:49 America/Monterrey] PHP Warning:  Undefined array key "role" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:46:56 America/Monterrey] PHP Warning:  Trying to access array offset on value of type null in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:46:56 America/Monterrey] PHP Warning:  Trying to access array offset on value of type null in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:46:56 America/Monterrey] PHP Warning:  Trying to access array offset on value of type null in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:51:27 America/Monterrey] PHP Warning:  Undefined array key "password" in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:51:27 America/Monterrey] PHP Warning:  Undefined array key "username" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:51:27 America/Monterrey] PHP Warning:  Undefined array key "role" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:54:59 America/Monterrey] PHP Warning:  Undefined array key "password" in /home/grupoam6/public_html/gotime/api/index.php on line 219
+[04-Aug-2025 21:54:59 America/Monterrey] PHP Warning:  Undefined array key "username" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[04-Aug-2025 21:54:59 America/Monterrey] PHP Warning:  Undefined array key "role" in /home/grupoam6/public_html/gotime/api/index.php on line 225
+[05-Aug-2025 12:03:13 America/Monterrey] PHP Warning:  unlink(../): Is a directory in /home/grupoam6/public_html/gotime/api/index.php on line 189
