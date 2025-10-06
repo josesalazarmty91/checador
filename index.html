@@ -577,7 +577,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordsPerPage = 10;
     
     let lastMatch = { label: null, count: 0 };
-    const CONFIRMATION_THRESHOLD = 3; 
+    // AJUSTE: Aumentar las confirmaciones necesarias para mayor seguridad.
+    const CONFIRMATION_THRESHOLD = 5; 
 
     // --- ELEMENTOS DEL DOM ---
     const loginView = document.getElementById('login-view');
@@ -610,7 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             showToast('Cargando modelos de IA...', 'info');
             await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                // AJUSTE: Cargar el modelo SSD Mobilenetv1 que es más preciso.
+                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
             ]);
@@ -1447,7 +1449,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast("No hay perfiles faciales registrados para comparar.", "info");
             return;
         }
-        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+        // AJUSTE: Umbral de distancia más estricto para mayor precisión.
+        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5);
 
         const video = document.getElementById('checker-video');
         const canvas = document.getElementById('checker-canvas');
@@ -1474,7 +1477,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const displaySize = { width: video.clientWidth, height: video.clientHeight };
                 faceapi.matchDimensions(canvas, displaySize);
 
-                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+                // AJUSTE: Usar SsdMobilenetv1Options para una detección más precisa.
+                const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
                 
                 canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
