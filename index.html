@@ -130,30 +130,6 @@
         .prose li {
             margin-bottom: 0.5em;
         }
-        /* Estilos para modo pantalla completa del checador */
-        #view-facial-checker.fullscreen-mode {
-            padding: 0;
-            margin: 0;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-        }
-        #view-facial-checker.fullscreen-mode > div {
-            width: 100%;
-            height: 100%;
-            max-width: none;
-            border-radius: 0;
-            box-shadow: none;
-            display: flex;
-            flex-direction: column;
-        }
-        #view-facial-checker.fullscreen-mode #facial-checker-container {
-            flex-grow: 1;
-            aspect-ratio: unset;
-        }
     </style>
 </head>
 <body class="antialiased text-slate-800">
@@ -1594,7 +1570,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconCompress = document.getElementById('icon-compress');
 
     function toggleFullScreen() {
-        const elem = document.documentElement; // Usar el body para mejor compatibilidad
+        const elem = document.documentElement; 
         if (!document.fullscreenElement) {
             if (elem.requestFullscreen) {
                 elem.requestFullscreen();
@@ -1616,7 +1592,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.addEventListener('fullscreenchange', () => {
         const isFullscreen = !!document.fullscreenElement;
-        facialCheckerView.classList.toggle('fullscreen-mode', isFullscreen);
+        // AJUSTE: Se elimina la clase que modifica el contenedor del checador.
         iconExpand.classList.toggle('hidden', isFullscreen);
         iconCompress.classList.toggle('hidden', !isFullscreen);
     });
