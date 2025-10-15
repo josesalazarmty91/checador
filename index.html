@@ -130,6 +130,25 @@
         .prose li {
             margin-bottom: 0.5em;
         }
+        /* Animación para el spinner de validación */
+        .spinner {
+            width: 56px;
+            height: 56px;
+            border: 5px solid #FFF;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body class="antialiased text-slate-800">
@@ -433,6 +452,11 @@
                     <div id="facial-checker-container" class="w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
                         <video id="checker-video" autoplay muted playsinline class="w-full h-full"></video>
                         <canvas id="checker-canvas"></canvas>
+                        <!-- PANTALLA DE VALIDACIÓN -->
+                        <div id="validating-overlay" class="absolute inset-0 bg-black bg-opacity-50 flex-col items-center justify-center text-white hidden z-10">
+                            <span class="spinner"></span>
+                            <p class="text-xl font-semibold mt-4">Validando...</p>
+                        </div>
                     </div>
                     <p class="text-center text-gray-500 mt-4">Coloca tu rostro frente a la cámara.</p>
                 </div>
@@ -585,8 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordsPerPage = 10;
     
     let lastMatch = { label: null, count: 0 };
-    // AJUSTE: Aumentar las confirmaciones necesarias para mayor seguridad.
-    const CONFIRMATION_THRESHOLD = 5; 
+    // AJUSTE: Se reduce el umbral de confirmación a 3.
+    const CONFIRMATION_THRESHOLD = 3; 
 
     // --- ELEMENTOS DEL DOM ---
     const loginView = document.getElementById('login-view');
@@ -611,6 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const punctualityMonthPicker = document.getElementById('punctuality-month-picker');
     const generatePunctualityReportBtn = document.getElementById('generate-punctuality-report-btn');
     const punctualityReportContainer = document.getElementById('punctuality-report-table-container');
+    const validatingOverlay = document.getElementById('validating-overlay');
     
     // --- INICIALIZACIÓN Y SESIÓN ---
     const loadFaceApiModels = async () => {
@@ -619,7 +644,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             showToast('Cargando modelos de IA...', 'info');
             await Promise.all([
-                // AJUSTE: Cargar el modelo SSD Mobilenetv1 que es más preciso.
                 faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
@@ -1370,6 +1394,9 @@ document.addEventListener('DOMContentLoaded', () => {
             recognitionStream = null;
         }
         isDetecting = false;
+        // Ocultar overlay al detener
+        validatingOverlay.classList.add('hidden');
+        validatingOverlay.classList.remove('flex');
     };
 
     const stopFaceEnrollment = () => {
@@ -1438,6 +1465,10 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast("Los modelos de IA aún no están cargados.", "info");
             return;
         }
+        
+        // Mostrar overlay de "Validando..."
+        validatingOverlay.classList.remove('hidden');
+        validatingOverlay.classList.add('flex');
 
         const labeledFaceDescriptors = await Promise.all(
             facialDescriptors
@@ -1455,9 +1486,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (labeledFaceDescriptors.length === 0) {
             showToast("No hay perfiles faciales registrados para comparar.", "info");
+            stopFaceRecognition();
             return;
         }
-        // AJUSTE: Umbral de distancia más estricto para mayor precisión.
         faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5);
 
         const video = document.getElementById('checker-video');
@@ -1469,6 +1500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error("Error al acceder a la cámara:", err);
             showToast("No se pudo acceder a la cámara.", "error");
+            stopFaceRecognition();
             return;
         }
 
@@ -1477,10 +1509,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isDetecting = true;
 
             try {
-                // FIX: Check if video element has valid dimensions before proceeding.
                 if (video.paused || video.ended || video.clientHeight === 0) {
                     isDetecting = false;
-                    // If stream is still active but element isn't ready, retry.
                     if (recognitionStream) {
                         recognitionInterval = setTimeout(runFaceDetection, 100);
                     }
@@ -1490,9 +1520,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const displaySize = { width: video.clientWidth, height: video.clientHeight };
                 faceapi.matchDimensions(canvas, displaySize);
 
-                // AJUSTE: Usar SsdMobilenetv1Options para una detección más precisa.
                 const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                
+                // Ocultar el overlay después de la primera detección exitosa
+                if (!validatingOverlay.classList.contains('hidden')) {
+                    validatingOverlay.classList.add('hidden');
+                    validatingOverlay.classList.remove('flex');
+                }
                 
                 canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
                 
@@ -1565,7 +1600,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- LÓGICA DE PANTALLA COMPLETA ---
     const fullscreenBtn = document.getElementById('fullscreen-btn');
-    const facialCheckerView = document.getElementById('view-facial-checker');
     const iconExpand = document.getElementById('icon-expand');
     const iconCompress = document.getElementById('icon-compress');
 
@@ -1592,7 +1626,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.addEventListener('fullscreenchange', () => {
         const isFullscreen = !!document.fullscreenElement;
-        // AJUSTE: Se elimina la clase que modifica el contenedor del checador.
         iconExpand.classList.toggle('hidden', isFullscreen);
         iconCompress.classList.toggle('hidden', !isFullscreen);
     });
