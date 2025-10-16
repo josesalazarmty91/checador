@@ -489,11 +489,38 @@ function save_facial_descriptor($pdo) {
 function check_in_out($pdo) {
     $data = json_decode(file_get_contents('php://input'), true);
     $employee_id = (int)$data['employeeId'];
-    $now = date('Y-m-d H:i:s');
+    $now_dt = new DateTime();
+    $now = $now_dt->format('Y-m-d H:i:s');
     $today_start = date('Y-m-d 00:00:00');
     $today_end = date('Y-m-d 23:59:59');
+
     try {
-        // --- Buscar un registro de entrada abierto para hoy ---
+        // --- AJUSTE: Validar el tiempo desde el último checado ---
+        // 1. Encontrar la última hora de entrada o salida para este empleado.
+        $stmt_last_record = $pdo->prepare("
+            SELECT GREATEST(
+                IFNULL((SELECT MAX(hora_entrada) FROM registros_asistencia WHERE id_empleado = :id), '1970-01-01'),
+                IFNULL((SELECT MAX(hora_salida) FROM registros_asistencia WHERE id_empleado = :id), '1970-01-01')
+            ) AS last_action_time
+        ");
+        $stmt_last_record->execute(['id' => $employee_id]);
+        $last_record = $stmt_last_record->fetch();
+
+        if ($last_record && $last_record['last_action_time'] !== '1970-01-01') {
+            $last_action_dt = new DateTime($last_record['last_action_time']);
+            $interval = $now_dt->getTimestamp() - $last_action_dt->getTimestamp();
+            $minutes_diff = floor($interval / 60);
+
+            // 2. Si han pasado menos de 5 minutos, devolver error.
+            if ($minutes_diff < 5) {
+                http_response_code(429); // Too Many Requests
+                echo json_encode(['error' => 'Ya has checado recientemente. Por favor, espera 5 minutos.']);
+                return;
+            }
+        }
+        // --- FIN DE LA VALIDACIÓN ---
+
+        // --- Lógica existente ---
         $sql = "SELECT id FROM registros_asistencia WHERE id_empleado = ? AND hora_entrada >= ? AND hora_entrada <= ? AND hora_salida IS NULL";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$employee_id, $today_start, $today_end]);

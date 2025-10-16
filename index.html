@@ -604,6 +604,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let recognitionStream = null;
     let modelsLoaded = false;
     let isDetecting = false;
+    // AJUSTE: Variable para prevenir registros duplicados.
+    let isProcessingCheckInOut = false;
 
     let currentPage = 1;
     const recordsPerPage = 10;
@@ -1524,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
                 
                 // Ocultar el overlay después de la primera detección exitosa
-                if (!validatingOverlay.classList.contains('hidden')) {
+                if (detections.length > 0 && !validatingOverlay.classList.contains('hidden')) {
                     validatingOverlay.classList.add('hidden');
                     validatingOverlay.classList.remove('flex');
                 }
@@ -1639,9 +1641,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const processCheckInOut = async (employeeId) => {
+        if (isProcessingCheckInOut) {
+            console.log("Proceso de checado ya en curso. Omitiendo.");
+            return;
+        }
+        isProcessingCheckInOut = true;
+
         const employee = employees.find(e => e.id === employeeId);
         if (!employee) {
             showToast(`Error: Empleado con ID ${employeeId} no encontrado.`, 'error');
+            isProcessingCheckInOut = false;
             if (currentUser.role === 'place') {
                 setTimeout(() => showView('facial-checker'), 2500);
             }
@@ -1654,7 +1663,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ employeeId: employeeId })
             });
-            if (!response.ok) throw new Error('Error en el servidor al registrar asistencia.');
+
+            // AJUSTE: Manejo de errores específico para el cooldown.
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.error || 'Error en el servidor al registrar asistencia.');
+            }
 
             const result = await response.json();
             const now = new Date(result.timestamp.replace(' ', 'T'));
@@ -1682,11 +1696,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     showView('dashboard');
                 }
+                isProcessingCheckInOut = false; // Liberar el seguro
             }, 3000);
 
         } catch (error) {
             console.error(error);
-            showToast('Error al registrar la asistencia.', 'error');
+            // AJUSTE: Mostrar el mensaje de error específico del servidor.
+            showToast(error.message, 'error');
+            isProcessingCheckInOut = false; // Liberar el seguro en caso de error
             const isPlaceRole = currentUser.role === 'place';
             if (isPlaceRole) setTimeout(() => showView('facial-checker'), 2500);
         }
