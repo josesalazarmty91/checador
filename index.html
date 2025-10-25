@@ -130,25 +130,6 @@
         .prose li {
             margin-bottom: 0.5em;
         }
-        /* Animación para el spinner de validación */
-        .spinner {
-            width: 56px;
-            height: 56px;
-            border: 5px solid #FFF;
-            border-bottom-color: transparent;
-            border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
-        }
-        @keyframes rotation {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
     </style>
 </head>
 <body class="antialiased text-slate-800">
@@ -261,9 +242,8 @@
                         </div>
                         <!-- SECCIÓN DE FILTROS -->
                         <div id="attendance-filters" class="p-6 bg-gray-50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                            <!-- AJUSTE: Se cambian las etiquetas para mayor claridad -->
-                            <div class="lg:col-span-1"><label for="filter-start-date" class="block text-sm font-medium text-gray-700">Desde la Fecha</label><input type="date" id="filter-start-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
-                            <div class="lg:col-span-1"><label for="filter-end-date" class="block text-sm font-medium text-gray-700">Hasta la Fecha</label><input type="date" id="filter-end-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div class="lg:col-span-1"><label for="filter-start-date" class="block text-sm font-medium text-gray-700">Fecha Inicio</label><input type="date" id="filter-start-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div class="lg:col-span-1"><label for="filter-end-date" class="block text-sm font-medium text-gray-700">Fecha Fin</label><input type="date" id="filter-end-date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></div>
                             <div id="department-filter-container" class="lg:col-span-1"><label for="filter-department" class="block text-sm font-medium text-gray-700">Departamento</label><select id="filter-department" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select></div>
                             <div id="employee-filter-container" class="lg:col-span-1"><label for="filter-employee" class="block text-sm font-medium text-gray-700">Empleado</label><select id="filter-employee" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select></div>
                             <div class="flex space-x-2 lg:col-span-1"><button id="apply-filters-btn" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">Filtrar</button><button id="clear-filters-btn" class="w-full bg-slate-300 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-400 transition font-semibold">Limpiar</button></div>
@@ -439,24 +419,11 @@
 
             <!-- VISTA: CHECADOR FACIAL -->
             <section id="view-facial-checker" class="view">
-                <div class="max-w-2xl mx-auto bg-white p-4 sm:p-6 rounded-xl shadow-lg relative">
-                    <button id="fullscreen-btn" title="Toggle Fullscreen" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800 z-20 p-2 rounded-full hover:bg-gray-100 transition-colors">
-                        <svg id="icon-expand" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" />
-                        </svg>
-                        <svg id="icon-compress" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l-5 5m0 0l5-5m-5 5v-4m0 4h4m10-10l-5 5m0 0l5-5m-5 5v4m0-4h-4" />
-                        </svg>
-                    </button>
+                <div class="max-w-2xl mx-auto bg-white p-4 sm:p-6 rounded-xl shadow-lg">
                     <h2 class="text-2xl font-bold mb-4 text-center">Checador Facial</h2>
                     <div id="facial-checker-container" class="w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
                         <video id="checker-video" autoplay muted playsinline class="w-full h-full"></video>
                         <canvas id="checker-canvas"></canvas>
-                        <!-- PANTALLA DE VALIDACIÓN -->
-                        <div id="validating-overlay" class="absolute inset-0 bg-black bg-opacity-50 flex-col items-center justify-center text-white hidden z-10">
-                            <span class="spinner"></span>
-                            <p class="text-xl font-semibold mt-4">Validando...</p>
-                        </div>
                     </div>
                     <p class="text-center text-gray-500 mt-4">Coloca tu rostro frente a la cámara.</p>
                 </div>
@@ -604,14 +571,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let recognitionStream = null;
     let modelsLoaded = false;
     let isDetecting = false;
-    // AJUSTE: Variable para prevenir registros duplicados.
-    let isProcessingCheckInOut = false;
 
     let currentPage = 1;
     const recordsPerPage = 10;
     
     let lastMatch = { label: null, count: 0 };
-    // AJUSTE: Se reduce el umbral de confirmación a 3.
     const CONFIRMATION_THRESHOLD = 3; 
 
     // --- ELEMENTOS DEL DOM ---
@@ -637,7 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const punctualityMonthPicker = document.getElementById('punctuality-month-picker');
     const generatePunctualityReportBtn = document.getElementById('generate-punctuality-report-btn');
     const punctualityReportContainer = document.getElementById('punctuality-report-table-container');
-    const validatingOverlay = document.getElementById('validating-overlay');
     
     // --- INICIALIZACIÓN Y SESIÓN ---
     const loadFaceApiModels = async () => {
@@ -646,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             showToast('Cargando modelos de IA...', 'info');
             await Promise.all([
-                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
             ]);
@@ -794,18 +757,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderReportsView = () => {
         const canSeeDepartmentFilter = ['admin', 'director'].includes(currentUser.role);
         departmentFilterContainer.classList.toggle('hidden', !canSeeDepartmentFilter);
+        employeeFilterContainer.classList.toggle('lg:col-span-2', !canSeeDepartmentFilter);
+        employeeFilterContainer.classList.toggle('lg:col-span-1', canSeeDepartmentFilter);
         
         const today = new Date();
         const year = today.getFullYear();
         const month = (today.getMonth() + 1).toString().padStart(2, '0');
         monthPicker.value = `${year}-${month}`;
         punctualityMonthPicker.value = `${year}-${month}`;
-
-        // AJUSTE: Añadir event listener para el filtro de departamento
-        filterDepartment.addEventListener('change', () => {
-            const selectedDepartmentId = filterDepartment.value ? parseInt(filterDepartment.value) : null;
-            populateAttendanceUserFilter(null, selectedDepartmentId);
-        });
 
         applyFiltersAndRender();
     };
@@ -820,67 +779,53 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getFilteredAttendance = () => {
-        let filteredAttendance = [...attendance];
-        
-        // --- INICIO DE AJUSTES EN FILTROS ---
-
-        // AJUSTE: La visibilidad se maneja dentro del renderizado, aquí partimos del total
-        let employeesToDisplay = [...employees];
-        
-        // Lógica de visibilidad por rol
-        if (currentUser.role === 'manager') {
+        let visibleEmployees = [];
+        if (currentUser.role === 'admin' || currentUser.role === 'director') {
+            visibleEmployees = employees;
+        } else if (currentUser.role === 'manager') {
             const managerEmployeeId = parseInt(currentUser.id_empleado);
             const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
             if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
                 reportIds.push(managerEmployeeId);
             }
-            employeesToDisplay = employees.filter(e => reportIds.includes(e.id));
+            visibleEmployees = employees.filter(e => reportIds.includes(e.id));
         }
+        
+        populateAttendanceUserFilter(visibleEmployees);
+        populateDepartmentSelect(filterDepartment, true);
 
-        const visibleEmployeeIds = employeesToDisplay.map(e => e.id);
+        let filteredAttendance = [...attendance];
+        const visibleEmployeeIds = visibleEmployees.map(e => e.id);
         filteredAttendance = filteredAttendance.filter(a => visibleEmployeeIds.includes(a.employeeId));
 
-        // Rellenar filtros antes de aplicar
-        populateDepartmentSelect(filterDepartment, true);
-        const initialDepartmentId = filterDepartment.value ? parseInt(filterDepartment.value) : null;
-        populateAttendanceUserFilter(employeesToDisplay, initialDepartmentId);
-
-
-        // Obtiene los valores de los filtros
-        let startDate = filterStartDate.value;
-        let endDate = filterEndDate.value;
+        const startDate = filterStartDate.value;
+        const endDate = filterEndDate.value;
         const departmentId = filterDepartment.value;
         const employeeId = filterEmployee.value;
-        
-        if (startDate && !endDate) {
-            endDate = startDate;
-        }
 
-        // Aplica filtro por empleado
         if (employeeId) {
             filteredAttendance = filteredAttendance.filter(a => a.employeeId === parseInt(employeeId));
         }
-        
-        // Aplica filtro por departamento
-        if (departmentId) {
+        if (departmentId && ['admin', 'director'].includes(currentUser.role)) {
             const departmentEmployeeIds = employees.filter(e => e.id_departamento === parseInt(departmentId)).map(e => e.id);
             filteredAttendance = filteredAttendance.filter(a => departmentEmployeeIds.includes(a.employeeId));
         }
-        
         if (startDate) {
-            const [year, month, day] = startDate.split('-').map(Number);
-            const start = new Date(year, month - 1, day, 0, 0, 0, 0);
-            filteredAttendance = filteredAttendance.filter(a => a.checkIn && a.checkIn >= start);
+            // MODIFICACIÓN: Corregir la interpretación de la fecha
+            // new Date("YYYY-MM-DD") se interpreta como UTC midnight, causando un desfase de un día en algunas zonas horarias.
+            // Al añadir "T00:00:00", forzamos a que se interprete como la medianoche en la hora local del usuario.
+            const start = new Date(startDate + "T00:00:00");
+            start.setHours(0, 0, 0, 0); // Asegurar que es el inicio del día
+            filteredAttendance = filteredAttendance.filter(a => a.checkIn >= start);
         }
         if (endDate) {
-            const [year, month, day] = endDate.split('-').map(Number);
-            const end = new Date(year, month - 1, day, 23, 59, 59, 999);
-            filteredAttendance = filteredAttendance.filter(a => a.checkIn && a.checkIn <= end);
+            // MODIFICACIÓN: Corregir la interpretación de la fecha
+            const end = new Date(endDate + "T00:00:00");
+            end.setHours(23, 59, 59, 999); // Asegurar que es el fin del día
+            filteredAttendance = filteredAttendance.filter(a => a.checkIn <= end);
         }
-        
         return filteredAttendance;
     }
-
 
     const applyFiltersAndRender = () => {
         currentPage = 1; 
@@ -931,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortedAttendance = [...paginatedItems].sort((a, b) => (b.checkIn || 0) - (a.checkIn || 0));
         
         if (sortedAttendance.length === 0) {
-            attendanceTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-gray-500">No hay registros que mostrar con los filtros seleccionados.</td></tr>';
+            attendanceTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-gray-500">No hay registros que mostrar.</td></tr>';
         } else {
             sortedAttendance.forEach(att => {
                 const employee = employees.find(e => e.id === att.employeeId);
@@ -1056,48 +1001,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- LÓGICA DE FILTROS Y EXPORTACIÓN ---
-    // AJUSTE: La función ahora acepta un departmentId para filtrar los empleados
-    const populateAttendanceUserFilter = (employeesToPopulate, departmentId = null) => {
-        // Si no se pasa una lista de empleados, se usa la lista visible por rol
-        if (!employeesToPopulate) {
-            if (currentUser.role === 'admin' || currentUser.role === 'director') {
-                employeesToPopulate = employees;
-            } else if (currentUser.role === 'manager') {
-                const managerEmployeeId = parseInt(currentUser.id_empleado);
-                const reportIds = employees.filter(e => e.managerId === managerEmployeeId).map(e => e.id);
-                if (managerEmployeeId && !reportIds.includes(managerEmployeeId)) {
-                    reportIds.push(managerEmployeeId);
-                }
-                employeesToPopulate = employees.filter(e => reportIds.includes(e.id));
-            } else {
-                employeesToPopulate = [];
-            }
-        }
-
-        let filteredEmployees = employeesToPopulate;
-        // Si se seleccionó un departamento, se filtra la lista de empleados
-        if (departmentId) {
-            filteredEmployees = employeesToPopulate.filter(emp => emp.id_departamento === departmentId);
-        }
-
-        const currentEmployeeValue = filterEmployee.value;
+    const populateAttendanceUserFilter = (visibleEmployees) => {
         filterEmployee.innerHTML = '<option value="">Todos los Empleados</option>';
-        
-        filteredEmployees.forEach(emp => {
+        visibleEmployees.forEach(emp => {
             const option = document.createElement('option');
             option.value = emp.id;
             option.textContent = `${emp.nombres} ${emp.apellido_paterno}`;
             filterEmployee.appendChild(option);
         });
-
-        // Intenta preservar la selección del empleado si todavía existe en la nueva lista
-        if (filteredEmployees.some(emp => emp.id.toString() === currentEmployeeValue)) {
-            filterEmployee.value = currentEmployeeValue;
-        }
     };
     
     const populateDepartmentSelect = (selectElement, includeAllOption = false) => {
-        const currentValue = selectElement.value;
         selectElement.innerHTML = '';
         if (includeAllOption) {
             selectElement.innerHTML = '<option value="">Todos los Deptos.</option>';
@@ -1108,7 +1022,6 @@ document.addEventListener('DOMContentLoaded', () => {
             option.textContent = dep.nombre;
             selectElement.appendChild(option);
         });
-        selectElement.value = currentValue;
     };
 
     applyFiltersBtn.addEventListener('click', applyFiltersAndRender);
@@ -1117,8 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
         filterEndDate.value = '';
         filterDepartment.value = '';
         filterEmployee.value = '';
-        // AJUSTE: Se repuebla el filtro de empleados para mostrar todos nuevamente
-        populateAttendanceUserFilter(null, null);
         applyFiltersAndRender();
     });
 
@@ -1141,7 +1052,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const exportAttendanceToCSV = () => {
-        // AJUSTE: Se asegura de que la data exportada sea la que está actualmente filtrada
         const data = getFilteredAttendance();
         let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
         csvContent += "Empleado,Departamento,Fecha Entrada,Hora Entrada,Fecha Salida,Hora Salida\r\n";
@@ -1396,9 +1306,6 @@ document.addEventListener('DOMContentLoaded', () => {
             recognitionStream = null;
         }
         isDetecting = false;
-        // Ocultar overlay al detener
-        validatingOverlay.classList.add('hidden');
-        validatingOverlay.classList.remove('flex');
     };
 
     const stopFaceEnrollment = () => {
@@ -1412,8 +1319,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const startFaceEnrollment = async () => {
         if (!modelsLoaded) {
-            showToast("Los modelos de IA aún no están cargados.", "info");
+            showToast("Los modelos de IA aún no están cargados. Espera un momento...", "info");
+            // MODIFICACIÓN: Esperar a que los modelos carguen si no lo están.
+            // Esto evita la "race condition" de intentar usar la IA antes de que esté lista.
             await loadFaceApiModels();
+            showToast("Modelos de IA listos. Ya puedes continuar.", "success");
         }
         
         const employeeSelect = document.getElementById('enroll-employee-select');
@@ -1467,10 +1377,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast("Los modelos de IA aún no están cargados.", "info");
             return;
         }
-        
-        // Mostrar overlay de "Validando..."
-        validatingOverlay.classList.remove('hidden');
-        validatingOverlay.classList.add('flex');
 
         const labeledFaceDescriptors = await Promise.all(
             facialDescriptors
@@ -1488,10 +1394,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (labeledFaceDescriptors.length === 0) {
             showToast("No hay perfiles faciales registrados para comparar.", "info");
-            stopFaceRecognition();
             return;
         }
-        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5);
+        faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
 
         const video = document.getElementById('checker-video');
         const canvas = document.getElementById('checker-canvas');
@@ -1502,7 +1407,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error("Error al acceder a la cámara:", err);
             showToast("No se pudo acceder a la cámara.", "error");
-            stopFaceRecognition();
             return;
         }
 
@@ -1511,25 +1415,16 @@ document.addEventListener('DOMContentLoaded', () => {
             isDetecting = true;
 
             try {
-                if (video.paused || video.ended || video.clientHeight === 0) {
+                if (video.paused || video.ended) {
                     isDetecting = false;
-                    if (recognitionStream) {
-                        recognitionInterval = setTimeout(runFaceDetection, 100);
-                    }
                     return;
                 }
 
                 const displaySize = { width: video.clientWidth, height: video.clientHeight };
                 faceapi.matchDimensions(canvas, displaySize);
 
-                const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                
-                // Ocultar el overlay después de la primera detección exitosa
-                if (detections.length > 0 && !validatingOverlay.classList.contains('hidden')) {
-                    validatingOverlay.classList.add('hidden');
-                    validatingOverlay.classList.remove('flex');
-                }
                 
                 canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
                 
@@ -1600,38 +1495,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
-    // --- LÓGICA DE PANTALLA COMPLETA ---
-    const fullscreenBtn = document.getElementById('fullscreen-btn');
-    const iconExpand = document.getElementById('icon-expand');
-    const iconCompress = document.getElementById('icon-compress');
-
-    function toggleFullScreen() {
-        const elem = document.documentElement; 
-        if (!document.fullscreenElement) {
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.mozRequestFullScreen) { /* Firefox */
-                elem.mozRequestFullScreen();
-            } else if (elem.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { /* IE/Edge */
-                elem.msRequestFullscreen();
-            }
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-    }
-    
-    fullscreenBtn.addEventListener('click', toggleFullScreen);
-    
-    document.addEventListener('fullscreenchange', () => {
-        const isFullscreen = !!document.fullscreenElement;
-        iconExpand.classList.toggle('hidden', isFullscreen);
-        iconCompress.classList.toggle('hidden', !isFullscreen);
-    });
-
     // --- Lógica Central de Checador ---
     const playSound = (soundFile) => {
         const audio = new Audio(`sounds/${soundFile}`);
@@ -1641,16 +1504,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const processCheckInOut = async (employeeId) => {
-        if (isProcessingCheckInOut) {
-            console.log("Proceso de checado ya en curso. Omitiendo.");
-            return;
-        }
-        isProcessingCheckInOut = true;
-
         const employee = employees.find(e => e.id === employeeId);
         if (!employee) {
             showToast(`Error: Empleado con ID ${employeeId} no encontrado.`, 'error');
-            isProcessingCheckInOut = false;
             if (currentUser.role === 'place') {
                 setTimeout(() => showView('facial-checker'), 2500);
             }
@@ -1663,12 +1519,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ employeeId: employeeId })
             });
-
-            // AJUSTE: Manejo de errores específico para el cooldown.
-            if (!response.ok) {
-                const errorResult = await response.json();
-                throw new Error(errorResult.error || 'Error en el servidor al registrar asistencia.');
-            }
+            if (!response.ok) throw new Error('Error en el servidor al registrar asistencia.');
 
             const result = await response.json();
             const now = new Date(result.timestamp.replace(' ', 'T'));
@@ -1696,14 +1547,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     showView('dashboard');
                 }
-                isProcessingCheckInOut = false; // Liberar el seguro
             }, 3000);
 
         } catch (error) {
             console.error(error);
-            // AJUSTE: Mostrar el mensaje de error específico del servidor.
-            showToast(error.message, 'error');
-            isProcessingCheckInOut = false; // Liberar el seguro en caso de error
+            showToast('Error al registrar la asistencia.', 'error');
             const isPlaceRole = currentUser.role === 'place';
             if (isPlaceRole) setTimeout(() => showView('facial-checker'), 2500);
         }
@@ -1978,7 +1826,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         showToast("Procesando rostro...", "info");
-        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        
+        // MODIFICACIÓN: Añadir try...catch específico para la detección
+        let detection;
+        try {
+            detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        } catch (detectError) {
+            console.error("Error en la detección facial:", detectError);
+            showToast("Ocurrió un error al analizar la imagen. Intenta de nuevo.", "error");
+            return;
+        }
+
 
         if (!detection) {
             showToast("No se detectó ningún rostro. Asegúrate de estar frente a la cámara.", "error");
@@ -1986,21 +1844,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
+            // MODIFICACIÓN: Convertir el descriptor (Float32Array) a un array estándar
+            // Esto asegura que el formato JSON sea correcto y compatible con el backend.
+            const descriptorArray = Array.from(detection.descriptor);
+
             const response = await fetch(API_URL + 'save_facial_descriptor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id_empleado: employeeId,
-                    descriptor: detection.descriptor
+                    descriptor: descriptorArray // Usar el array estándar
                 })
             });
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error);
+            if (!response.ok) {
+                // MODIFICACIÓN: Dar un error más claro si el servidor responde mal
+                throw new Error(result.error || `Error del servidor: ${response.statusText}`);
+            }
             
             await fetchInitialData();
             showToast("Perfil facial guardado con éxito.", "success");
             showView('dashboard');
         } catch (error) {
+            // MODIFICACIÓN: Mejorar el mensaje de error para diagnóstico
+            console.error("Error al guardar el perfil facial:", error);
             showToast(`Error al guardar el perfil: ${error.message}`, "error");
         }
     });
@@ -2174,4 +2041,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
+
 
